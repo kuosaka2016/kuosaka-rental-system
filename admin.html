@@ -14,6 +14,18 @@
         .back-link:hover { text-decoration: underline; }
         
         .main-container { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+        
+        /* タブ切り替えボタンのスタイル */
+        .tab-menu { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+        .tab-btn { background-color: #e2e8f0; color: #475569; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s, color 0.2s; }
+        .tab-btn.active { background-color: #206c8c; color: white; }
+        .tab-btn:hover { background-color: #cbd5e1; }
+        .tab-btn.active:hover { background-color: #174d63; }
+
+        /* セクションの表示切り替え */
+        .admin-section { display: none; }
+        .admin-section.active { display: block; }
+
         .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; margin-bottom: 2rem; }
         .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; }
         
@@ -40,6 +52,8 @@
         .form-group input[type="file"] { padding: 0.4rem; background-color: #f9f9f9; cursor: pointer; }
         .submit-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; }
         .submit-btn:hover { background-color: #174d63; }
+
+        .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 0.3rem; background-color: #eee; }
     </style>
 </head>
 <body>
@@ -49,62 +63,93 @@
     </div>
 
     <div class="main-container">
-        <!-- 新規アイテム登録カード -->
-        <div class="card">
-            <h2>➕ 新規レンタル品の追加（画像アップロード対応）</h2>
-            <form id="add-item-form">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="product-name">商品名</label>
-                        <input type="text" id="product-name" required placeholder="例: テント">
-                    </div>
-                    <div class="form-group">
-                        <label for="product-category">カテゴリ</label>
-                        <select id="product-category" required>
-                            <option value="" disabled selected>選択してください</option>
-                            <option value="スポーツ">スポーツ</option>
-                            <option value="アウトドア">アウトドア</option>
-                            <option value="トラベル">トラベル</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="total-stock">総在庫数 (数値)</label>
-                        <input type="number" id="total-stock" required min="1" value="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
-                        <input type="text" id="unit-numbers" required placeholder="例: T-01, T-02">
-                    </div>
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label for="product-image">商品画像ファイル（任意）</label>
-                        <input type="file" id="product-image" accept="image/*">
-                    </div>
-                </div>
-                <button type="submit" class="submit-btn">この内容でアイテムを追加する</button>
-            </form>
+        <!-- 切り替えタブボタン -->
+        <div class="tab-menu">
+            <button class="tab-btn active" onclick="switchTab('reservations', this)">📋 予約一覧・管理</button>
+            <button class="tab-btn" onclick="switchTab('products', this)">📦 商品一覧・新規追加</button>
         </div>
 
-        <!-- 予約一覧カード -->
-        <div class="card">
-            <h2>📋 予約・貸出管理一覧</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>申込日時</th>
-                        <th>所属</th>
-                        <th>氏名</th>
-                        <th>予約商品 ＆ 個体番号</th>
-                        <th>レンタル期間</th>
-                        <th>メールアドレス</th>
-                        <th>ステータス / 操作</th>
-                    </tr>
-                </thead>
-                <tbody id="reservation-list">
-                    <tr>
-                        <td colspan="7" style="text-align: center;">データを読み込んでいます...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- ① 予約一覧セクション -->
+        <div id="section-reservations" class="admin-section active">
+            <div class="card">
+                <h2>📋 予約・貸出管理一覧</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>申込日時</th>
+                            <th>所属</th>
+                            <th>氏名</th>
+                            <th>予約商品 ＆ 個体番号</th>
+                            <th>レンタル期間</th>
+                            <th>メールアドレス</th>
+                            <th>ステータス / 操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservation-list">
+                        <tr>
+                            <td colspan="7" style="text-align: center;">データを読み込んでいます...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ② 商品一覧・新規追加セクション -->
+        <div id="section-products" class="admin-section">
+            <div class="card">
+                <h2>➕ 新規レンタル品の追加（画像アップロード対応）</h2>
+                <form id="add-item-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="product-name">商品名</label>
+                            <input type="text" id="product-name" required placeholder="例: テント">
+                        </div>
+                        <div class="form-group">
+                            <label for="product-category">カテゴリ</label>
+                            <select id="product-category" required>
+                                <option value="" disabled selected>選択してください</option>
+                                <option value="スポーツ">スポーツ</option>
+                                <option value="アウトドア">アウトドア</option>
+                                <option value="トラベル">トラベル</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="total-stock">総在庫数 (数値)</label>
+                            <input type="number" id="total-stock" required min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
+                            <input type="text" id="unit-numbers" required placeholder="例: T-01, T-02">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="product-image">商品画像ファイル（任意）</label>
+                            <input type="file" id="product-image" accept="image/*">
+                        </div>
+                    </div>
+                    <button type="submit" class="submit-btn">この内容でアイテムを追加する</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>📦 登録済み商品一覧</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>画像</th>
+                            <th>商品名</th>
+                            <th>カテゴリ</th>
+                            <th>総在庫数</th>
+                            <th>個体番号一覧</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-list">
+                        <tr>
+                            <td colspan="6" style="text-align: center;">商品を読み込んでいます...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -116,7 +161,21 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             loadReservations();
+            loadProducts();
         });
+
+        // タブ切り替え関数
+        function switchTab(tabName, btnElement) {
+            document.querySelectorAll('.admin-section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            if (tabName === 'reservations') {
+                document.getElementById('section-reservations').classList.add('active');
+            } else if (tabName === 'products') {
+                document.getElementById('section-products').classList.add('active');
+            }
+            btnElement.classList.add('active');
+        }
 
         async function loadReservations() {
             const tbody = document.getElementById('reservation-list');
@@ -193,6 +252,58 @@
             }
         }
 
+        async function loadProducts() {
+            const tbody = document.getElementById('product-list');
+            try {
+                const { data: products, error: prodError } = await supabaseClient
+                    .from('products')
+                    .select('*')
+                    .order('name');
+
+                const { data: units, error: unitError } = await supabaseClient
+                    .from('product_units')
+                    .select('*');
+
+                if (prodError) throw prodError;
+                if (unitError) throw unitError;
+
+                if (!products || products.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">登録されている商品はありません。</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+
+                products.forEach(prod => {
+                    const tr = document.createElement('tr');
+                    
+                    const imgHtml = prod.image_url 
+                        ? `<img src="${prod.image_url}" class="product-thumbnail" alt="商品画像">` 
+                        : '<span style="font-size:0.8rem; color:#999;">画像なし</span>';
+
+                    const prodUnits = units.filter(u => u.product_id === prod.id);
+                    const unitsHtml = prodUnits.length > 0 
+                        ? prodUnits.map(u => `<span class="unit-number">${u.unit_number}</span>`).join(' ') 
+                        : '<span style="color:#999;">個体なし</span>';
+
+                    tr.innerHTML = `
+                        <td>${imgHtml}</td>
+                        <td><strong>${prod.name}</strong></td>
+                        <td>${prod.category || '未分類'}</td>
+                        <td>${prod.total_stock || prodUnits.length}個</td>
+                        <td>${unitsHtml}</td>
+                        <td>
+                            <button onclick="deleteProduct('${prod.id}')" class="delete-btn">商品を削除</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
+            }
+        }
+
         function getStatusClass(status) {
             if (status === '予約中') return 'status-yoyaku';
             if (status === '貸出済') return 'status-kashidashi';
@@ -208,10 +319,8 @@
                     .eq('id', reservationId);
 
                 if (error) throw error;
-                
                 alert(`ステータスを「${newStatus}」に更新しました。`);
                 loadReservations(); 
-
             } catch (err) {
                 console.error(err);
                 alert("更新に失敗しました。\n" + err.message);
@@ -220,27 +329,16 @@
         }
 
         async function deleteReservation(reservationId) {
-            if (!confirm("本当にこの予約を削除しますか？\n削除すると、この期間の個体（在庫）が再び予約可能になります。")) {
-                return;
-            }
+            if (!confirm("本当にこの予約を削除しますか？\n削除すると、この期間の個体（在庫）が再び予約可能になります。")) return;
 
             try {
-                const { error: itemError } = await supabaseClient
-                    .from('reservation_items')
-                    .delete()
-                    .eq('reservation_id', reservationId);
-
+                const { error: itemError } = await supabaseClient.from('reservation_items').delete().eq('reservation_id', reservationId);
                 if (itemError) throw itemError;
 
-                const { error: resError } = await supabaseClient
-                    .from('reservations')
-                    .delete()
-                    .eq('id', reservationId);
-
+                const { error: resError } = await supabaseClient.from('reservations').delete().eq('id', reservationId);
                 if (resError) throw resError;
 
                 loadReservations();
-
             } catch (err) {
                 console.error(err);
                 alert("削除に失敗しました。\n" + err.message);
@@ -248,9 +346,26 @@
             }
         }
 
-        // ==========================================
-        // ➕ 新規アイテム登録 ＆ 画像アップロードの処理
-        // ==========================================
+        // 商品の削除処理
+        async function deleteProduct(productId) {
+            if (!confirm("本当にこの商品を削除しますか？\n紐づく個体データも一緒に削除されます。")) return;
+
+            try {
+                // 1. 紐づく個体データの削除
+                await supabaseClient.from('product_units').delete().eq('product_id', productId);
+                // 2. 商品自体の削除
+                const { error } = await supabaseClient.from('products').delete().eq('id', productId);
+                if (error) throw error;
+
+                alert("商品を削除しました。");
+                loadProducts();
+            } catch (err) {
+                console.error(err);
+                alert("削除に失敗しました。\n" + err.message);
+            }
+        }
+
+        // 新規アイテム登録 ＆ 画像アップロードの処理
         document.getElementById('add-item-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -267,63 +382,42 @@
 
             try {
                 let imageUrl = null;
-
-                // 1. 画像ファイルが選択されている場合、Supabase Storageにアップロード
                 if (imageFile) {
-                    // ファイル名が被らないように現在時刻をプレフィックスとして付与
                     const fileExt = imageFile.name.split('.').pop();
-                    const fileName = `${Date.now()}_${Math.random().toString(36.substring(2, 7))}.${fileExt}`;
-                    const filePath = `${fileName}`;
-
-                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+                    
+                    const { error: uploadError } = await supabaseClient.storage
                         .from('product-images')
-                        .upload(filePath, imageFile);
+                        .upload(fileName, imageFile);
 
                     if (uploadError) throw uploadError;
 
-                    // アップロードしたファイルの公開URLを取得
                     const { data: publicUrlData } = supabaseClient.storage
                         .from('product-images')
-                        .getPublicUrl(filePath);
+                        .getPublicUrl(fileName);
 
                     imageUrl = publicUrlData.publicUrl;
                 }
 
-                // 2. products テーブルに新しい商品を挿入（image_urlも一緒に保存）
                 const { data: insertedProduct, error: prodError } = await supabaseClient
                     .from('products')
-                    .insert([{ 
-                        name: name, 
-                        category: category, 
-                        total_stock: totalStock,
-                        is_active: true,
-                        image_url: imageUrl
-                    }])
+                    .insert([{ name: name, category: category, total_stock: totalStock, is_active: true, image_url: imageUrl }])
                     .select()
                     .single();
 
                 if (prodError) throw prodError;
 
-                const newProductId = insertedProduct.id;
-
-                // 3. 個体番号を分割して product_units テーブルに登録
                 const unitNumbers = unitInput.split(',').map(u => u.trim()).filter(u => u !== '');
-                const unitRows = unitNumbers.map(uNum => ({
-                    product_id: newProductId,
-                    unit_number: uNum
-                }));
+                const unitRows = unitNumbers.map(uNum => ({ product_id: insertedProduct.id, unit_number: uNum }));
 
-                const { error: unitError } = await supabaseClient
-                    .from('product_units')
-                    .insert(unitRows);
-
+                const { error: unitError } = await supabaseClient.from('product_units').insert(unitRows);
                 if (unitError) throw unitError;
 
                 alert(`新しいアイテム「${name}」を登録しました！`);
-                
-                // フォームをリセット
                 document.getElementById('add-item-form').reset();
                 document.getElementById('total-stock').value = "1";
+                
+                loadProducts(); // リストを更新
 
             } catch (err) {
                 console.error(err);
