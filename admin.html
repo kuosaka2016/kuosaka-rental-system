@@ -37,6 +37,7 @@
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
         .form-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.3rem; color: #555; }
         .form-group input, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; box-sizing: border-box; background-color: #fff; }
+        .form-group input[type="file"] { padding: 0.4rem; background-color: #f9f9f9; cursor: pointer; }
         .submit-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; }
         .submit-btn:hover { background-color: #174d63; }
     </style>
@@ -50,7 +51,7 @@
     <div class="main-container">
         <!-- 新規アイテム登録カード -->
         <div class="card">
-            <h2>➕ 新規レンタル品の追加</h2>
+            <h2>➕ 新規レンタル品の追加（画像アップロード対応）</h2>
             <form id="add-item-form">
                 <div class="form-grid">
                     <div class="form-group">
@@ -72,7 +73,11 @@
                     </div>
                     <div class="form-group">
                         <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
-                        <input type="text" id="unit-numbers" required placeholder="例: 商品名_No.1, 商品名_No.2">
+                        <input type="text" id="unit-numbers" required placeholder="例: T-01, T-02">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="product-image">商品画像ファイル（任意）</label>
+                        <input type="file" id="product-image" accept="image/*">
                     </div>
                 </div>
                 <button type="submit" class="submit-btn">この内容でアイテムを追加する</button>
@@ -109,7 +114,6 @@
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // ページ読み込み時にパスワード認証なしで直接データを読み込む
         window.addEventListener('DOMContentLoaded', () => {
             loadReservations();
         });
@@ -245,7 +249,7 @@
         }
 
         // ==========================================
-        // ➕ 新規アイテム登録の処理
+        // ➕ 新規アイテム登録 ＆ 画像アップロードの処理
         // ==========================================
         document.getElementById('add-item-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -254,21 +258,46 @@
             const category = document.getElementById('product-category').value;
             const totalStock = parseInt(document.getElementById('total-stock').value, 10);
             const unitInput = document.getElementById('unit-numbers').value.trim();
+            const imageFile = document.getElementById('product-image').files[0];
 
             if (!name || !category || isNaN(totalStock) || !unitInput) {
-                alert("すべての項目を正しく入力・選択してください。");
+                alert("すべての必須項目を正しく入力・選択してください。");
                 return;
             }
 
             try {
-                // 1. products テーブルに新しい商品を挿入
+                let imageUrl = null;
+
+                // 1. 画像ファイルが選択されている場合、Supabase Storageにアップロード
+                if (imageFile) {
+                    // ファイル名が被らないように現在時刻をプレフィックスとして付与
+                    const fileExt = imageFile.name.split('.').pop();
+                    const fileName = `${Date.now()}_${Math.random().toString(36.substring(2, 7))}.${fileExt}`;
+                    const filePath = `${fileName}`;
+
+                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                        .from('product-images')
+                        .upload(filePath, imageFile);
+
+                    if (uploadError) throw uploadError;
+
+                    // アップロードしたファイルの公開URLを取得
+                    const { data: publicUrlData } = supabaseClient.storage
+                        .from('product-images')
+                        .getPublicUrl(filePath);
+
+                    imageUrl = publicUrlData.publicUrl;
+                }
+
+                // 2. products テーブルに新しい商品を挿入（image_urlも一緒に保存）
                 const { data: insertedProduct, error: prodError } = await supabaseClient
                     .from('products')
                     .insert([{ 
                         name: name, 
                         category: category, 
                         total_stock: totalStock,
-                        is_active: true 
+                        is_active: true,
+                        image_url: imageUrl
                     }])
                     .select()
                     .single();
@@ -277,7 +306,7 @@
 
                 const newProductId = insertedProduct.id;
 
-                // 2. 個体番号を分割して product_units テーブルに登録
+                // 3. 個体番号を分割して product_units テーブルに登録
                 const unitNumbers = unitInput.split(',').map(u => u.trim()).filter(u => u !== '');
                 const unitRows = unitNumbers.map(uNum => ({
                     product_id: newProductId,
