@@ -14,13 +14,22 @@
         
         .card { background-color: white; border-radius: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; width: 100%; box-sizing: border-box; margin-bottom: 2rem; }
         
+        /* カードのヘッダー部分（タイトルと「カートを空にする」ボタンの配置） */
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f7f9fa; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        .card-header h2 { margin: 0; font-size: 1.2rem; color: #206c8c; }
+
         /* カート内商品リスト */
         .cart-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 1rem 0; flex-wrap: wrap; gap: 1rem; }
         .cart-item:last-child { border-bottom: none; }
         .item-details h3 { margin: 0 0 0.3rem 0; font-size: 1.1rem; color: #206c8c; }
         .item-details p { margin: 0; font-size: 0.85rem; color: #666; }
+        
         .remove-btn { background-color: #ffebee; color: #c62828; border: none; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; }
         .remove-btn:hover { background-color: #ffcdd2; }
+
+        /* カートを空にするボタンのスタイル */
+        .clear-cart-btn { background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .clear-cart-btn:hover { background-color: #e2e8f0; color: #1e293b; }
 
         /* 予約者情報入力フォーム */
         .form-grid { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
@@ -40,7 +49,11 @@
         
         <!-- カート内商品カード -->
         <div class="card">
-            <h2 style="margin-top:0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f7f9fa; padding-bottom: 0.5rem;">選択中の商品</h2>
+            <div class="card-header">
+                <h2>選択中の商品</h2>
+                <!-- カートを空にするボタン -->
+                <button class="clear-cart-btn" id="clear-cart-btn" onclick="clearCart()" style="display: none;">カートを空にする</button>
+            </div>
             <div id="cart-items-container">
                 <p class="empty-cart">カートに商品がありません。</p>
             </div>
@@ -48,7 +61,7 @@
 
         <!-- 予約者情報フォーム -->
         <div class="card" id="checkout-card" style="display: none;">
-            <h2 style="margin-top:0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f7f9fa; padding-bottom: 0.5rem;">予約者情報の入力</h2>
+            <h2 style="margin-top:0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f7f9fa; padding-bottom: 0.5rem; margin-bottom: 1rem;">予約者情報の入力</h2>
             <form id="checkout-form">
                 <div class="form-grid">
                     <div class="form-group">
@@ -81,15 +94,18 @@
         function renderCart() {
             const container = document.getElementById('cart-items-container');
             const checkoutCard = document.getElementById('checkout-card');
+            const clearBtn = document.getElementById('clear-cart-btn');
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
 
             if (cart.length === 0) {
                 container.innerHTML = '<p class="empty-cart">カートに商品がありません。<br><a href="travel.html" style="color: #206c8c; font-weight: bold;">商品一覧へ戻る</a></p>';
                 checkoutCard.style.display = 'none';
+                clearBtn.style.display = 'none'; // カートが空ならボタンを隠す
                 return;
             }
 
             checkoutCard.style.display = 'block';
+            clearBtn.style.display = 'inline-block'; // 商品があればボタンを表示
             container.innerHTML = '';
 
             cart.forEach((item, index) => {
@@ -107,10 +123,18 @@
             });
         }
 
+        // 個別削除
         function removeItem(index) {
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
             cart.splice(index, 1);
             localStorage.setItem('rental_cart', JSON.stringify(cart));
+            renderCart();
+        }
+
+        // カートをすべて空にする
+        function clearCart() {
+            if (!confirm("カート内の商品をすべて削除しますか？")) return;
+            localStorage.removeItem('rental_cart');
             renderCart();
         }
 
@@ -128,7 +152,6 @@
                 return;
             }
 
-            // カート内の商品はすべて同じ期間である前提、または最初のアイテムの期間を代表として使用
             const startDate = cart[0].startDate;
             const endDate = cart[0].endDate;
 
@@ -161,12 +184,10 @@
 
                 if (unitError || exResError || exItemsError) throw (unitError || exResError || exItemsError);
 
-                // 期間が被っている予約ID
                 const conflictingResIds = existingRes.filter(res => {
                     return !(res.end_date < startDate || res.start_date > endDate);
                 }).map(res => res.id);
 
-                // 既に埋まっている unit_id
                 const bookedUnitIds = existingItems
                     .filter(item => conflictingResIds.includes(item.reservation_id))
                     .map(item => item.unit_id);
@@ -174,17 +195,14 @@
                 let reservationItemsToInsert = [];
 
                 for (let item of cart) {
-                    // この商品に紐づく個体のうち、指定期間に空いているものを必要数分ピックアップ
                     const availableUnits = units.filter(u => u.product_id === item.id && !bookedUnitIds.includes(u.id));
 
                     if (availableUnits.length < item.quantity) {
                         throw new Error(`「${item.name}」の在庫が足りなくなりました。再度商品一覧から空き状況をご確認ください。`);
                     }
 
-                    // 必要な個数分だけ割り当て
                     for (let i = 0; i < item.quantity; i++) {
                         const targetUnit = availableUnits[i];
-                        // 二重割り当て防止のために bookedUnitIds にも追加しておく
                         bookedUnitIds.push(targetUnit.id);
 
                         reservationItemsToInsert.push({
@@ -196,14 +214,12 @@
                     }
                 }
 
-                // reservation_items に書き込み
                 const { error: insertItemsError } = await supabaseClient
                     .from('reservation_items')
                     .insert(reservationItemsToInsert);
 
                 if (insertItemsError) throw insertItemsError;
 
-                // カートを空にする
                 localStorage.removeItem('rental_cart');
 
                 alert("予約が完了しました！ご登録ありがとうございます。");
