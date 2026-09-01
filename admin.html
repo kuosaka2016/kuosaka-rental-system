@@ -27,8 +27,14 @@
         .admin-section.active { display: block; }
 
         .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; margin-bottom: 2rem; }
-        .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; }
+        .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
         
+        /* フィルター用のボタンスタイル */
+        .filter-menu { display: flex; gap: 0.5rem; }
+        .filter-btn { background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .filter-btn.active { background-color: #206c8c; color: white; border-color: #206c8c; }
+        .filter-btn:hover { background-color: #e2e8f0; }
+
         table { width: 100%; border-collapse: collapse; min-width: 1100px; }
         th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
         th { background-color: #f7f9fa; color: #206c8c; font-weight: bold; }
@@ -135,7 +141,16 @@
             </div>
 
             <div class="card">
-                <h2>📦 登録済み商品一覧</h2>
+                <h2>
+                    📦 登録済み商品一覧
+                    <!-- カテゴリフィルターボタン -->
+                    <div class="filter-menu">
+                        <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
+                        <button class="filter-btn" onclick="filterProducts('スポーツ', this)">スポーツ</button>
+                        <button class="filter-btn" onclick="filterProducts('アウトドア', this)">アウトドア</button>
+                        <button class="filter-btn" onclick="filterProducts('トラベル', this)">トラベル</button>
+                    </div>
+                </h2>
                 <table>
                     <thead>
                         <tr>
@@ -162,6 +177,11 @@
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // 商品データを保持しておく変数
+        let allProductsData = [];
+        let allUnitsData = [];
+        let currentCategoryFilter = 'all';
 
         window.addEventListener('DOMContentLoaded', () => {
             loadReservations();
@@ -257,7 +277,6 @@
         }
 
         async function loadProducts() {
-            const tbody = document.getElementById('product-list');
             try {
                 const { data: products, error: prodError } = await supabaseClient
                     .from('products')
@@ -271,44 +290,68 @@
                 if (prodError) throw prodError;
                 if (unitError) throw unitError;
 
-                if (!products || products.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">登録されている商品はありません。</td></tr>';
-                    return;
-                }
+                allProductsData = products || [];
+                allUnitsData = units || [];
 
-                tbody.innerHTML = '';
-
-                products.forEach(prod => {
-                    const tr = document.createElement('tr');
-                    
-                    const imgHtml = prod.image_url 
-                        ? `<img src="${prod.image_url}" class="product-thumbnail" alt="商品画像">` 
-                        : '<span style="font-size:0.8rem; color:#999;">画像なし</span>';
-
-                    const prodUnits = units.filter(u => u.product_id === prod.id);
-                    const unitsHtml = prodUnits.length > 0 
-                        ? prodUnits.map(u => `<span class="unit-number">${u.unit_number}</span>`).join(' ') 
-                        : '<span style="color:#999;">個体なし</span>';
-
-                    tr.innerHTML = `
-                        <td>${imgHtml}</td>
-                        <td><strong>${prod.name}</strong></td>
-                        <td>${prod.category || '未分類'}</td>
-                        <td>${prod.total_stock || prodUnits.length}個</td>
-                        <td>${unitsHtml}</td>
-                        <td>
-                            <div class="action-btns">
-                                <button onclick="editProduct('${prod.id}', '${prod.name}', '${prod.category || ''}', ${prod.total_stock || prodUnits.length})" class="edit-btn">編集</button>
-                                <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
-                            </div>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                renderProductList();
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
+                document.getElementById('product-list').innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
             }
+        }
+
+        // カテゴリフィルター切り替え関数
+        function filterProducts(category, btnElement) {
+            currentCategoryFilter = category;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            renderProductList();
+        }
+
+        // 商品一覧を描画する関数
+        function renderProductList() {
+            const tbody = document.getElementById('product-list');
+            
+            // フィルター適用
+            const filteredProducts = allProductsData.filter(prod => {
+                if (currentCategoryFilter === 'all') return true;
+                return prod.category === currentCategoryFilter;
+            });
+
+            if (filteredProducts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">該当する商品はありません。</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            filteredProducts.forEach(prod => {
+                const tr = document.createElement('tr');
+                
+                const imgHtml = prod.image_url 
+                    ? `<img src="${prod.image_url}" class="product-thumbnail" alt="商品画像">` 
+                    : '<span style="font-size:0.8rem; color:#999;">画像なし</span>';
+
+                const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
+                const unitsHtml = prodUnits.length > 0 
+                    ? prodUnits.map(u => `<span class="unit-number">${u.unit_number}</span>`).join(' ') 
+                    : '<span style="color:#999;">個体なし</span>';
+
+                tr.innerHTML = `
+                    <td>${imgHtml}</td>
+                    <td><strong>${prod.name}</strong></td>
+                    <td>${prod.category || '未分類'}</td>
+                    <td>${prod.total_stock || prodUnits.length}個</td>
+                    <td>${unitsHtml}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button onclick="editProduct('${prod.id}', '${prod.name}', '${prod.category || ''}', ${prod.total_stock || prodUnits.length})" class="edit-btn">編集</button>
+                            <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         function getStatusClass(status) {
@@ -356,7 +399,7 @@
         // 商品の編集処理
         async function editProduct(productId, currentName, currentCategory, currentStock) {
             const newName = prompt("新しい商品名を入力してください:", currentName);
-            if (newName === null) return; // キャンセルされた場合
+            if (newName === null) return;
 
             const categories = ["スポーツ", "アウトドア", "トラベル"];
             const newCategory = prompt(`カテゴリを選択してください（スポーツ / アウトドア / トラベル）:\n現在のカテゴリ: ${currentCategory}`, currentCategory);
@@ -399,9 +442,7 @@
             if (!confirm("本当にこの商品を削除しますか？\n紐づく個体データも一緒に削除されます。")) return;
 
             try {
-                // 1. 紐づく個体データの削除
                 await supabaseClient.from('product_units').delete().eq('product_id', productId);
-                // 2. 商品自体の削除
                 const { error } = await supabaseClient.from('products').delete().eq('id', productId);
                 if (error) throw error;
 
@@ -465,7 +506,7 @@
                 document.getElementById('add-item-form').reset();
                 document.getElementById('total-stock').value = "1";
                 
-                loadProducts(); // リストを更新
+                loadProducts();
 
             } catch (err) {
                 console.error(err);
