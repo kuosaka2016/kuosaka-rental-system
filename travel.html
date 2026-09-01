@@ -124,11 +124,11 @@
 
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
                 
-                // キャンセルおよび返却済みの予約は、在庫の埋まり具合から除外する（＝在庫が自動解放される）
+                // キャンセルおよび「返却済」の予約は、在庫の埋まり具合から除外する（＝在庫が自動解放される）
                 const { data: reservations, error: resError } = await supabaseClient
                     .from('reservations')
                     .select('*')
-                    .not('status', 'in', '("キャンセル","返却済み")');
+                    .not('status', 'in', '("キャンセル","返却済")');
 
                 const { data: resItems, error: itemsError } = await supabaseClient.from('reservation_items').select('*');
 
