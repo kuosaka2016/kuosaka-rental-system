@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社内レンタル予約 | アウトドア商品一覧</title>
+    <meta name="robots" content="noindex, nofollow">
+    <!-- ネットワークブロック対策 -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; }
+        .back-button { position: fixed; top: 1rem; left: 1rem; background-color: #ffffff; color: #333; text-decoration: none; padding: 0.5rem 1rem; border-radius: 1.5rem; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100; }
+        .cart-icon { position: fixed; top: 1rem; right: 1rem; background-color: #333; color: white; padding: 0.5rem 1.5rem; border-radius: 1.5rem; font-weight: bold; z-index: 100; cursor: pointer; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .cart-icon:hover { background-color: #555; }
+        .main-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 1400px; padding: 5rem 2rem 2rem; box-sizing: border-box; }
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 3rem; text-align: center; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2.5rem; width: 100%; }
+        .product-card { background-color: #206c8c; border-radius: 2rem; display: flex; flex-direction: column; align-items: center; padding: 2rem; box-sizing: border-box; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .product-image-container { background-color: #ffffff; width: 100%; height: 180px; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; color: #777; font-size: 1.2rem; }
+        .product-name { font-size: 1.3rem; font-weight: 500; margin: 0 0 0.5rem 0; width: 100%; }
+        .stock-info { font-size: 0.9rem; margin-bottom: 1.5rem; background-color: rgba(255,255,255,0.2); padding: 0.2rem 1rem; border-radius: 1rem; }
+        .quantity-selector { display: flex; align-items: center; justify-content: space-between; background-color: #ffffff; border-radius: 1rem; padding: 0.5rem; width: 100%; max-width: 200px; margin-bottom: 1.5rem; }
+        .qty-btn { background-color: #e0e0e0; border: none; color: #333; font-size: 1.2rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .qty-display { color: #333; font-size: 1.2rem; font-weight: bold; min-width: 40px; text-align: center; }
+        .reserve-button { background-color: #f6eb16; color: #333; border: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: 700; width: 100%; max-width: 200px; cursor: pointer; transition: background-color 0.2s ease; }
+        .reserve-button:hover { background-color: #efdd12; }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-button">&larr; 戻る</a>
+    <a href="cart.html" class="cart-icon">カートを見る</a>
+
+    <div class="main-container">
+        <h1>アウトドア商品一覧</h1>
+        
+        <div class="product-grid" id="product-grid">
+            <p style="grid-column: 1 / -1; text-align: center;">データベースから商品を読み込んでいます...</p>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. URLとAPIキーを設定
+        // ==========================================
+        const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
+        
+        // ⚠️【最重要】APIキーは手入力せず、Supabaseの画面の「コピーボタン（四角が重なったアイコン）」を押してコピーし、
+        // 以下のシングルクォーテーション('')の間に貼り付けてください！
+        const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
+
+        async function loadProducts() {
+            const grid = document.getElementById('product-grid');
+
+            try {
+                if (!window.supabase) {
+                    grid.innerHTML = '<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラー：システム基盤（Supabase）に接続できません。</p>';
+                    return;
+                }
+
+                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+                const { data: products, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq('is_active', true)
+                    .eq('category', 'アウトドア');
+
+                if (error) {
+                    grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。APIキーが間違っている可能性があります。<br>詳細: ${error.message}</p>`;
+                    return;
+                }
+
+                if (!products || products.length === 0) {
+                    grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">現在、表示できる商品がありません。</p>';
+                    return;
+                }
+
+                grid.innerHTML = '';
+
+                products.forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.innerHTML = `
+                        <div class="product-image-container"><span>写真</span></div>
+                        <h2 class="product-name">${product.name}</h2>
+                        <div class="stock-info">総在庫: ${product.total_stock} 個</div>
+                        <div class="quantity-selector">
+                            <button class="qty-btn" onclick="updateQty(this, -1)">-</button>
+                            <span class="qty-display">1</span>
+                            <button class="qty-btn" onclick="updateQty(this, 1)">+</button>
+                        </div>
+                        <button class="reserve-button" onclick="addToCart(this, '${product.id}', '${product.name}')">カートに追加</button>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">予期せぬエラーが発生しました。<br>${err.message}</p>`;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadProducts);
+
+        function updateQty(btnElement, change) {
+            const displayElement = btnElement.parentElement.querySelector('.qty-display');
+            let currentQty = parseInt(displayElement.innerText);
+            let newQty = currentQty + change;
+            if (newQty < 1) newQty = 1; 
+            displayElement.innerText = newQty;
+        }
+
+        // ==========================================
+        // カートに保存する処理
+        // ==========================================
+        function addToCart(btnElement, productId, productName) {
+            const cardElement = btnElement.parentElement;
+            const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
+            let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
+            let existingItem = cart.find(item => item.id === productId);
+
+            if (existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                cart.push({ id: productId, name: productName, quantity: quantity });
+            }
+
+            localStorage.setItem('rental_cart', JSON.stringify(cart));
+            alert(`${productName} を ${quantity}個 カートに追加しました！\n右上の「カートを見る」から確認できます。`);
+        }
+    </script>
+</body>
+</html>
