@@ -36,7 +36,7 @@
         /* 登録フォーム用のスタイル */
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
         .form-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.3rem; color: #555; }
-        .form-group input, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; box-sizing: border-box; }
+        .form-group input, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; box-sizing: border-box; background-color: #fff; }
         .submit-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; }
         .submit-btn:hover { background-color: #174d63; }
     </style>
@@ -55,11 +55,16 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="product-name">商品名</label>
-                        <input type="text" id="product-name" required placeholder="例: LEDランタン">
+                        <input type="text" id="product-name" required placeholder="例: テント">
                     </div>
                     <div class="form-group">
-                        <label for="product-category">カテゴリ (例: アウトドア など)</label>
-                        <input type="text" id="product-category" required placeholder="アウトドア">
+                        <label for="product-category">カテゴリ</label>
+                        <select id="product-category" required>
+                            <option value="" disabled selected>選択してください</option>
+                            <option value="スポーツ">スポーツ</option>
+                            <option value="アウトドア">アウトドア</option>
+                            <option value="トラベル">トラベル</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="total-stock">総在庫数 (数値)</label>
@@ -67,7 +72,7 @@
                     </div>
                     <div class="form-group">
                         <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
-                        <input type="text" id="unit-numbers" required placeholder="例: L-01, L-02">
+                        <input type="text" id="unit-numbers" required placeholder="例: T-01, T-02">
                     </div>
                 </div>
                 <button type="submit" class="submit-btn">この内容でアイテムを追加する</button>
@@ -255,17 +260,17 @@
             e.preventDefault();
 
             const name = document.getElementById('product-name').value.trim();
-            const category = document.getElementById('product-category').value.trim();
+            const category = document.getElementById('product-category').value;
             const totalStock = parseInt(document.getElementById('total-stock').value, 10);
             const unitInput = document.getElementById('unit-numbers').value.trim();
 
             if (!name || !category || isNaN(totalStock) || !unitInput) {
-                alert("すべての項目を正しく入力してください。");
+                alert("すべての項目を正しく入力・選択してください。");
                 return;
             }
 
             try {
-                // 1. products テーブルに新しい商品を挿入（is_activeをTRUE、total_stockを指定）
+                // 1. products テーブルに新しい商品を挿入
                 const { data: insertedProduct, error: prodError } = await supabaseClient
                     .from('products')
                     .insert([{ 
