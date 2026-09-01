@@ -14,7 +14,8 @@
         .back-link:hover { text-decoration: underline; }
         
         .main-container { padding: 2rem; max-width: 1400px; margin: 0 auto; }
-        .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; }
+        .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; margin-bottom: 2rem; }
+        .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; }
         
         table { width: 100%; border-collapse: collapse; min-width: 1100px; }
         th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
@@ -31,6 +32,13 @@
 
         .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; width: 100%; transition: background-color 0.2s; }
         .delete-btn:hover { background-color: #ffcdd2; }
+
+        /* 登録フォーム用のスタイル */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.3rem; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; box-sizing: border-box; }
+        .submit-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; }
+        .submit-btn:hover { background-color: #174d63; }
     </style>
 </head>
 <body>
@@ -40,7 +48,35 @@
     </div>
 
     <div class="main-container">
+        <!-- 新規アイテム登録カード -->
         <div class="card">
+            <h2>➕ 新規レンタル品の追加</h2>
+            <form id="add-item-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="product-name">商品名</label>
+                        <input type="text" id="product-name" required placeholder="例: LEDランタン">
+                    </div>
+                    <div class="form-group">
+                        <label for="product-category">カテゴリ (例: アウトドア など)</label>
+                        <input type="text" id="product-category" required placeholder="アウトドア">
+                    </div>
+                    <div class="form-group">
+                        <label for="total-stock">総在庫数 (数値)</label>
+                        <input type="number" id="total-stock" required min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
+                        <input type="text" id="unit-numbers" required placeholder="例: L-01, L-02">
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn">この内容でアイテムを追加する</button>
+            </form>
+        </div>
+
+        <!-- 予約一覧カード -->
+        <div class="card">
+            <h2>📋 予約・貸出管理一覧</h2>
             <table>
                 <thead>
                     <tr>
@@ -55,7 +91,7 @@
                 </thead>
                 <tbody id="reservation-list">
                     <tr>
-                        <td colspan="7" style="text-align: center;">認証を行っています...</td>
+                        <td colspan="7" style="text-align: center;">データを読み込んでいます...</td>
                     </tr>
                 </tbody>
             </table>
@@ -63,17 +99,13 @@
     </div>
 
     <script>
-        // ==========================================
-        // 🔐 管理者パスワードの設定（お好みの文字列に変更してください）
-        // ==========================================
-        const ADMIN_PASSWORD = "kuosaka"; // ここを任意のパスワードに変更
+        const ADMIN_PASSWORD = "kuosaka"; 
 
         const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // ページ読み込み時にパスワード認証を実行
         window.addEventListener('DOMContentLoaded', () => {
             const enteredPassword = prompt("管理者パスワードを入力してください:");
 
@@ -83,7 +115,6 @@
                 return;
             }
 
-            // 認証成功したらデータを読み込む
             loadReservations();
         });
 
@@ -216,6 +247,64 @@
                 loadReservations();
             }
         }
+
+        // ==========================================
+        // ➕ 新規アイテム登録の処理
+        // ==========================================
+        document.getElementById('add-item-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('product-name').value.trim();
+            const category = document.getElementById('product-category').value.trim();
+            const totalStock = parseInt(document.getElementById('total-stock').value, 10);
+            const unitInput = document.getElementById('unit-numbers').value.trim();
+
+            if (!name || !category || isNaN(totalStock) || !unitInput) {
+                alert("すべての項目を正しく入力してください。");
+                return;
+            }
+
+            try {
+                // 1. products テーブルに新しい商品を挿入（is_activeをTRUE、total_stockを指定）
+                const { data: insertedProduct, error: prodError } = await supabaseClient
+                    .from('products')
+                    .insert([{ 
+                        name: name, 
+                        category: category, 
+                        total_stock: totalStock,
+                        is_active: true 
+                    }])
+                    .select()
+                    .single();
+
+                if (prodError) throw prodError;
+
+                const newProductId = insertedProduct.id;
+
+                // 2. 個体番号を分割して product_units テーブルに登録
+                const unitNumbers = unitInput.split(',').map(u => u.trim()).filter(u => u !== '');
+                const unitRows = unitNumbers.map(uNum => ({
+                    product_id: newProductId,
+                    unit_number: uNum
+                }));
+
+                const { error: unitError } = await supabaseClient
+                    .from('product_units')
+                    .insert(unitRows);
+
+                if (unitError) throw unitError;
+
+                alert(`新しいアイテム「${name}」を登録しました！`);
+                
+                // フォームをリセット
+                document.getElementById('add-item-form').reset();
+                document.getElementById('total-stock').value = "1";
+
+            } catch (err) {
+                console.error(err);
+                alert("アイテムの登録に失敗しました。\n" + err.message);
+            }
+        });
     </script>
 </body>
 </html>
