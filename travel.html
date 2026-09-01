@@ -17,7 +17,6 @@
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2.5rem; width: 100%; }
         .product-card { background-color: #206c8c; border-radius: 2rem; display: flex; flex-direction: column; align-items: center; padding: 2rem; box-sizing: border-box; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
-        /* 写真エリアのレイアウト調整（画像を綺麗に収める） */
         .product-image-container { background-color: #ffffff; width: 100%; height: 150px; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; color: #777; font-size: 1.2rem; overflow: hidden; }
         .product-image-container img { width: 100%; height: 100%; object-fit: contain; }
         
@@ -57,11 +56,13 @@
 
                 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+                // .order('name', { ascending: true }) を追加して、商品名の昇順（あいうえお順）で綺麗に並べます
                 const { data: products, error } = await supabase
                     .from('products')
                     .select('*')
                     .eq('is_active', true)
-                    .eq('category', 'トラベル');
+                    .eq('category', 'トラベル')
+                    .order('name', { ascending: true });
 
                 if (error) {
                     grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>詳細: ${error.message}</p>`;
@@ -103,7 +104,6 @@
 
         window.addEventListener('DOMContentLoaded', loadProducts);
 
-        // ※もし枠一杯に大きく見せたい場合は、上記の style 内にある object-fit: contain; を object-fit: cover; に変更してみてください。
         function updateQty(btnElement, change) {
             const displayElement = btnElement.parentElement.querySelector('.qty-display');
             let currentQty = parseInt(displayElement.innerText);
