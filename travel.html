@@ -126,7 +126,7 @@
                 if (prodError) throw prodError;
 
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
-                const { data: reservations, error: resError } = await supabaseClient.from('reservations').select('*').neq('status', 'キャンセル');
+                const { data: reservations, error: resError } = await supabaseClient.from('reservations').select('*')..not('status', 'in', '("キャンセル","返却済み")'); // キャンセルと返却済みを除外
                 const { data: resItems, error: itemsError } = await supabaseClient.from('reservation_items').select('*');
 
                 if (unitError || resError || itemsError) throw (unitError || resError || itemsError);
@@ -171,7 +171,7 @@
                     } else {
                         actionHtml = `
                             <div class="quantity-selector" style="visibility: hidden;"></div>
-                            <button class="reserve-button" disabled>この期間は満室です</button>
+                            <button class="reserve-button" disabled>この期間は予約が入っています</button>
                         `;
                     }
 
