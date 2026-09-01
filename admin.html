@@ -30,7 +30,7 @@
         .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; }
         
         table { width: 100%; border-collapse: collapse; min-width: 1100px; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
         th { background-color: #f7f9fa; color: #206c8c; font-weight: bold; }
         
         select { padding: 0.4rem; border-radius: 0.4rem; border: 1px solid #ccc; font-family: inherit; cursor: pointer; margin-bottom: 0.5rem; display: block; width: 100%; }
@@ -42,7 +42,11 @@
         .item-list li { margin-bottom: 0.3rem; }
         .unit-number { color: #206c8c; font-weight: bold; font-size: 0.85rem; background-color: #e6f2f5; padding: 0.1rem 0.4rem; border-radius: 0.3rem; display: inline-block; margin-top: 0.1rem; }
 
-        .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; width: 100%; transition: background-color 0.2s; }
+        .action-btns { display: flex; gap: 0.5rem; }
+        .edit-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .edit-btn:hover { background-color: #bae6fd; }
+
+        .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         .delete-btn:hover { background-color: #ffcdd2; }
 
         /* 登録フォーム用のスタイル */
@@ -293,7 +297,10 @@
                         <td>${prod.total_stock || prodUnits.length}個</td>
                         <td>${unitsHtml}</td>
                         <td>
-                            <button onclick="deleteProduct('${prod.id}')" class="delete-btn">商品を削除</button>
+                            <div class="action-btns">
+                                <button onclick="editProduct('${prod.id}', '${prod.name}', '${prod.category || ''}', ${prod.total_stock || prodUnits.length})" class="edit-btn">編集</button>
+                                <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
+                            </div>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -343,6 +350,47 @@
                 console.error(err);
                 alert("削除に失敗しました。\n" + err.message);
                 loadReservations();
+            }
+        }
+
+        // 商品の編集処理
+        async function editProduct(productId, currentName, currentCategory, currentStock) {
+            const newName = prompt("新しい商品名を入力してください:", currentName);
+            if (newName === null) return; // キャンセルされた場合
+
+            const categories = ["スポーツ", "アウトドア", "トラベル"];
+            const newCategory = prompt(`カテゴリを選択してください（スポーツ / アウトドア / トラベル）:\n現在のカテゴリ: ${currentCategory}`, currentCategory);
+            if (newCategory === null) return;
+            if (!categories.includes(newCategory)) {
+                alert("カテゴリは「スポーツ」「アウトドア」「トラベル」のいずれかで入力してください。");
+                return;
+            }
+
+            const newStockStr = prompt("新しい総在庫数を入力してください:", currentStock);
+            if (newStockStr === null) return;
+            const newStock = parseInt(newStockStr, 10);
+            if (isNaN(newStock) || newStock < 1) {
+                alert("有効な在庫数（1以上の数値）を入力してください。");
+                return;
+            }
+
+            try {
+                const { error } = await supabaseClient
+                    .from('products')
+                    .update({
+                        name: newName.trim(),
+                        category: newCategory,
+                        total_stock: newStock
+                    })
+                    .eq('id', productId);
+
+                if (error) throw error;
+
+                alert("商品情報を更新しました！");
+                loadProducts();
+            } catch (err) {
+                console.error(err);
+                alert("更新に失敗しました。\n" + err.message);
             }
         }
 
