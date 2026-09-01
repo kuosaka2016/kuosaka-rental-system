@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>社内レンタル予約 | アウトドア商品一覧</title>
+    <title>社内レンタル予約 | 商品一覧</title>
     <meta name="robots" content="noindex, nofollow">
-    <!-- ネットワークブロック対策 -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; }
@@ -16,7 +15,8 @@
         h1 { font-size: 2rem; font-weight: 700; margin-bottom: 3rem; text-align: center; }
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2.5rem; width: 100%; }
         .product-card { background-color: #206c8c; border-radius: 2rem; display: flex; flex-direction: column; align-items: center; padding: 2rem; box-sizing: border-box; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .product-image-container { background-color: #ffffff; width: 100%; height: 180px; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; color: #777; font-size: 1.2rem; }
+        .product-image-container { background-color: #ffffff; width: 100%; height: 150px; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; color: #777; font-size: 1.2rem; overflow: hidden; }
+        .product-image-container img { width: 100%; height: 100%; object-fit: contain; }
         .product-name { font-size: 1.3rem; font-weight: 500; margin: 0 0 0.5rem 0; width: 100%; }
         .stock-info { font-size: 0.9rem; margin-bottom: 1.5rem; background-color: rgba(255,255,255,0.2); padding: 0.2rem 1rem; border-radius: 1rem; }
         .quantity-selector { display: flex; align-items: center; justify-content: space-between; background-color: #ffffff; border-radius: 1rem; padding: 0.5rem; width: 100%; max-width: 200px; margin-bottom: 1.5rem; }
@@ -39,13 +39,7 @@
     </div>
 
     <script>
-        // ==========================================
-        // 1. URLとAPIキーを設定
-        // ==========================================
         const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
-        
-        // ⚠️【最重要】APIキーは手入力せず、Supabaseの画面の「コピーボタン（四角が重なったアイコン）」を押してコピーし、
-        // 以下のシングルクォーテーション('')の間に貼り付けてください！
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
 
         async function loadProducts() {
@@ -63,10 +57,11 @@
                     .from('products')
                     .select('*')
                     .eq('is_active', true)
-                    .eq('category', 'アウトドア');
+                    .eq('category', 'アウトドア')
+                    .order('name', { ascending: true });
 
                 if (error) {
-                    grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。APIキーが間違っている可能性があります。<br>詳細: ${error.message}</p>`;
+                    grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>詳細: ${error.message}</p>`;
                     return;
                 }
 
@@ -80,8 +75,13 @@
                 products.forEach(product => {
                     const card = document.createElement('div');
                     card.className = 'product-card';
+
+                    const imageHtml = product.image_url 
+                        ? `<img src="${product.image_url}" alt="${product.name}">` 
+                        : '<span>写真</span>';
+
                     card.innerHTML = `
-                        <div class="product-image-container"><span>写真</span></div>
+                        <div class="product-image-container">${imageHtml}</div>
                         <h2 class="product-name">${product.name}</h2>
                         <div class="stock-info">総在庫: ${product.total_stock} 個</div>
                         <div class="quantity-selector">
@@ -108,9 +108,6 @@
             displayElement.innerText = newQty;
         }
 
-        // ==========================================
-        // カートに保存する処理
-        // ==========================================
         function addToCart(btnElement, productId, productName) {
             const cardElement = btnElement.parentElement;
             const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
