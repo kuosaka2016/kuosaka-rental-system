@@ -1,1 +1,0 @@
-# kuosaka-rental-system
