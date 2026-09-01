@@ -67,7 +67,7 @@
         .submit-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; }
         .submit-btn:hover { background-color: #174d63; }
 
-        .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 0.3rem; background-color: #eee; }
+        .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 0.3rem; background-color: #eee; display: block; margin-bottom: 0.3rem; }
     </style>
 </head>
 <body>
@@ -146,7 +146,7 @@
 
             <div class="card">
                 <h2>
-                    📦 登録済み商品一覧（直接編集可能）
+                    📦 登録済み商品一覧（直接編集・画像変更可能）
                     <!-- カテゴリフィルターボタン -->
                     <div class="filter-menu">
                         <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
@@ -158,7 +158,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>画像</th>
+                            <th>画像 / 変更</th>
                             <th>商品名</th>
                             <th>カテゴリ</th>
                             <th>総在庫数</th>
@@ -310,7 +310,7 @@
             renderProductList();
         }
 
-        // 商品一覧を描画する関数（直接入力できる入力欄を配置）
+        // 商品一覧を描画する関数（画像変更用ファイルインプット付き）
         function renderProductList() {
             const tbody = document.getElementById('product-list');
             
@@ -331,14 +331,16 @@
                 
                 const imgHtml = prod.image_url 
                     ? `<img src="${prod.image_url}" class="product-thumbnail" alt="商品画像">` 
-                    : '<span style="font-size:0.8rem; color:#999;">画像なし</span>';
+                    : '<span style="font-size:0.8rem; color:#999; display:block; margin-bottom:0.3rem;">画像なし</span>';
 
-                // 紐づく個体番号をカンマ区切りの文字列にする
                 const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
                 const unitNumbersStr = prodUnits.map(u => u.unit_number).join(', ');
 
                 tr.innerHTML = `
-                    <td>${imgHtml}</td>
+                    <td>
+                        ${imgHtml}
+                        <input type="file" id="image-file-${prod.id}" accept="image/*" style="font-size: 0.75rem; width: 130px;">
+                    </td>
                     <td><input type="text" id="name-${prod.id}" value="${prod.name}" class="table-input"></td>
                     <td>
                         <select id="cat-${prod.id}" class="table-select">
@@ -351,7 +353,7 @@
                     <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: T-01, T-02"></td>
                     <td>
                         <div class="action-btns">
-                            <button onclick="saveProduct('${prod.id}')" class="save-btn">変更を保存</button>
+                            <button onclick="saveProduct('${prod.id}', '${prod.image_url || ''}')" class="save-btn">変更を保存</button>
                             <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
                         </div>
                     </td>
@@ -402,12 +404,14 @@
             }
         }
 
-        // 行ごとの「変更を保存」ボタンの処理
-        async function saveProduct(productId) {
+        // 行ごとの「変更を保存」ボタンの処理（画像アップロード対応）
+        async function saveProduct(productId, currentImageUrl) {
             const newName = document.getElementById(`name-${productId}`).value.trim();
             const newCategory = document.getElementById(`cat-${productId}`).value;
             const newStock = parseInt(document.getElementById(`stock-${productId}`).value, 10);
             const newUnitsInput = document.getElementById(`units-${productId}`).value.trim();
+            const imageFileInput = document.getElementById(`image-file-${productId}`);
+            const newImageFile = imageFileInput.files[0];
 
             if (!newName || !newCategory || isNaN(newStock) || !newUnitsInput) {
                 alert("すべての項目を正しく入力してください。");
@@ -415,19 +419,40 @@
             }
 
             try {
-                // 1. products テーブルの更新
+                let imageUrl = currentImageUrl;
+
+                // 新しい画像ファイルが選ばれている場合はストレージにアップロード
+                if (newImageFile) {
+                    const fileExt = newImageFile.name.split('.').pop();
+                    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+                    
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from('product-images')
+                        .upload(fileName, newImageFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabaseClient.storage
+                        .from('product-images')
+                        .getPublicUrl(fileName);
+
+                    imageUrl = publicUrlData.publicUrl;
+                }
+
+                // 1. products テーブルの更新（画像URL含む）
                 const { error: prodError } = await supabaseClient
                     .from('products')
                     .update({
                         name: newName,
                         category: newCategory,
-                        total_stock: newStock
+                        total_stock: newStock,
+                        image_url: imageUrl
                     })
                     .eq('id', productId);
 
                 if (prodError) throw prodError;
 
-                // 2. 個体番号（product_units）の更新：一度既存の個体をすべて削除し、新しく登録し直す
+                // 2. 個体番号（product_units）の更新
                 const { error: delError } = await supabaseClient
                     .from('product_units')
                     .delete()
@@ -448,7 +473,7 @@
                 if (unitError) throw unitError;
 
                 alert("商品情報を更新しました！");
-                loadProducts(); // リストを再読み込み
+                loadProducts(); 
 
             } catch (err) {
                 console.error(err);
