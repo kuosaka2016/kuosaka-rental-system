@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>社内レンタル予約 | 商品一覧</title>
+    <title>社内レンタル予約 | トラベル商品一覧</title>
     <meta name="robots" content="noindex, nofollow">
-    <!-- ネットワークブロック対策 -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; }
@@ -13,11 +12,18 @@
         .cart-icon { position: fixed; top: 1rem; right: 1rem; background-color: #333; color: white; padding: 0.5rem 1.5rem; border-radius: 1.5rem; font-weight: bold; z-index: 100; cursor: pointer; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         .cart-icon:hover { background-color: #555; }
         .main-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 1400px; padding: 5rem 2rem 2rem; box-sizing: border-box; }
-        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 3rem; text-align: center; }
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; text-align: center; }
+
+        /* 期間選択バーのスタイル */
+        .date-filter-bar { background-color: #ffffff; padding: 1rem 2rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; gap: 1.5rem; align-items: center; margin-bottom: 3rem; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 800px; box-sizing: border-box; }
+        .date-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .date-group label { font-size: 0.85rem; font-weight: bold; color: #555; }
+        .date-group input { padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.5rem; font-family: inherit; font-size: 0.95rem; }
+
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2.5rem; width: 100%; }
         .product-card { background-color: #206c8c; border-radius: 2rem; display: flex; flex-direction: column; align-items: center; padding: 2rem; box-sizing: border-box; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
-        .product-image-container { background-color: #ffffff; width: 100%; height: 200px; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; color: #777; font-size: 1.2rem; overflow: hidden; }
+        .product-image-container { background-color: #ffffff; width: 100%; height: 150px; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; color: #777; font-size: 1.2rem; overflow: hidden; }
         .product-image-container img { width: 100%; height: 100%; object-fit: contain; }
         
         .product-name { font-size: 1.3rem; font-weight: 500; margin: 0 0 0.5rem 0; width: 100%; }
@@ -27,6 +33,7 @@
         .qty-display { color: #333; font-size: 1.2rem; font-weight: bold; min-width: 40px; text-align: center; }
         .reserve-button { background-color: #f6eb16; color: #333; border: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: 700; width: 100%; max-width: 200px; cursor: pointer; transition: background-color 0.2s ease; }
         .reserve-button:hover { background-color: #efdd12; }
+        .reserve-button:disabled { background-color: #ccc; color: #666; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -36,6 +43,17 @@
     <div class="main-container">
         <h1>トラベル商品一覧</h1>
         
+        <div class="date-filter-bar">
+            <div class="date-group">
+                <label for="start-date">レンタル開始日</label>
+                <input type="date" id="start-date" onchange="loadProducts()">
+            </div>
+            <div class="date-group">
+                <label for="end-date">レンタル終了日</label>
+                <input type="date" id="end-date" onchange="loadProducts()">
+            </div>
+        </div>
+
         <div class="product-grid" id="product-grid">
             <p style="grid-column: 1 / -1; text-align: center;">データベースから商品を読み込んでいます...</p>
         </div>
@@ -44,30 +62,62 @@
     <script>
         const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // デフォルトで今日の日付をセット
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+            
+            document.getElementById('start-date').value = today;
+            document.getElementById('end-date').value = tomorrow;
+
+            loadProducts();
+        });
 
         async function loadProducts() {
             const grid = document.getElementById('product-grid');
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            if (!startDate || !endDate) {
+                return;
+            }
+
+            if (startDate > endDate) {
+                alert("開始日は終了日より前の日付にしてください。");
+                return;
+            }
 
             try {
-                if (!window.supabase) {
-                    grid.innerHTML = '<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラー：システム基盤（Supabase）に接続できません。</p>';
-                    return;
-                }
+                grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">空き状況を確認しています...</p>';
 
-                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-                // .order('name', { ascending: true }) を追加して、商品名の昇順（あいうえお順）で綺麗に並べます
-                const { data: products, error } = await supabase
+                // 1. トラベルカテゴリの商品を取得
+                const { data: products, error: prodError } = await supabaseClient
                     .from('products')
                     .select('*')
                     .eq('is_active', true)
                     .eq('category', 'トラベル')
                     .order('name', { ascending: true });
 
-                if (error) {
-                    grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>詳細: ${error.message}</p>`;
-                    return;
-                }
+                if (prodError) throw prodError;
+
+                // 2. 個体データ・予約データを取得して、指定期間中の空き状況を計算
+                const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
+                const { data: reservations, error: resError } = await supabaseClient.from('reservations').select('*').neq('status', 'キャンセル');
+                const { data: resItems, error: itemsError } = await supabaseClient.from('reservation_items').select('*');
+
+                if (unitError || resError || itemsError) throw (unitError || resError || itemsError);
+
+                // 指定期間に被っている予約の予約IDリストを抽出
+                const conflictingResIds = reservations.filter(res => {
+                    return !(res.end_date < startDate || res.start_date > endDate);
+                }).map(res => res.id);
+
+                // その期間に埋まっている unit_id のリスト
+                const bookedUnitIds = resItems
+                    .filter(item => conflictingResIds.includes(item.reservation_id))
+                    .map(item => item.unit_id);
 
                 if (!products || products.length === 0) {
                     grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">現在、表示できる商品がありません。</p>';
@@ -80,52 +130,90 @@
                     const card = document.createElement('div');
                     card.className = 'product-card';
 
+                    // この商品に紐づく個体一覧
+                    const prodUnits = units.filter(u => u.product_id === product.id);
+                    
+                    // その中で指定期間に空いている個体数
+                    const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
+                    const availableCount = availableUnits.length;
+
                     const imageHtml = product.image_url 
                         ? `<img src="${product.image_url}" alt="${product.name}">` 
                         : '<span>写真</span>';
 
+                    let actionHtml = '';
+                    if (availableCount > 0) {
+                        actionHtml = `
+                            <div class="quantity-selector">
+                                <button class="qty-btn" onclick="updateQty(this, -1, ${availableCount})">-</button>
+                                <span class="qty-display">1</span>
+                                <button class="qty-btn" onclick="updateQty(this, 1, ${availableCount})">+</button>
+                            </div>
+                            <button class="reserve-button" onclick="addToCart(this, '${product.id}', '${product.name}')">カートに追加</button>
+                        `;
+                    } else {
+                        actionHtml = `
+                            <div class="quantity-selector" style="visibility: hidden;"></div>
+                            <button class="reserve-button" disabled>この期間は満室です</button>
+                        `;
+                    }
+
                     card.innerHTML = `
                         <div class="product-image-container">${imageHtml}</div>
                         <h2 class="product-name">${product.name}</h2>
-                        <div class="stock-info">総在庫: ${product.total_stock} 個</div>
-                        <div class="quantity-selector">
-                            <button class="qty-btn" onclick="updateQty(this, -1)">-</button>
-                            <span class="qty-display">1</span>
-                            <button class="qty-btn" onclick="updateQty(this, 1)">+</button>
-                        </div>
-                        <button class="reserve-button" onclick="addToCart(this, '${product.id}', '${product.name}')">カートに追加</button>
+                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個 (総数: ${prodUnits.length || product.total_stock})</div>
+                        ${actionHtml}
                     `;
                     grid.appendChild(card);
                 });
             } catch (err) {
-                grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">予期せぬエラーが発生しました。<br>${err.message}</p>`;
+                console.error(err);
+                grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>${err.message}</p>`;
             }
         }
 
-        window.addEventListener('DOMContentLoaded', loadProducts);
-
-        function updateQty(btnElement, change) {
+        function updateQty(btnElement, change, maxStock) {
             const displayElement = btnElement.parentElement.querySelector('.qty-display');
             let currentQty = parseInt(displayElement.innerText);
             let newQty = currentQty + change;
-            if (newQty < 1) newQty = 1; 
+            if (newQty < 1) newQty = 1;
+            if (newQty > maxStock) newQty = maxStock; // 空き在庫数を超えて選べないように制限
             displayElement.innerText = newQty;
         }
 
         function addToCart(btnElement, productId, productName) {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            if (!startDate || !endDate) {
+                alert("レンタル期間を選択してください。");
+                return;
+            }
+
             const cardElement = btnElement.parentElement;
             const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
+            
+            // カートに期間も含めて保存する形式に拡張
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
-            let existingItem = cart.find(item => item.id === productId);
+            
+            // 既存のカート情報に別の期間のものが混ざらないように制御するか、そのまま保持するか
+            // ここではシンプルに商品と数量、期間をセットで保存します
+            let existingItem = cart.find(item => item.id === productId && item.startDate === startDate && item.endDate === endDate);
 
             if (existingItem) {
                 existingItem.quantity += quantity;
             } else {
-                cart.push({ id: productId, name: productName, quantity: quantity });
+                cart.push({ 
+                    id: productId, 
+                    name: productName, 
+                    quantity: quantity, 
+                    startDate: startDate, 
+                    endDate: endDate 
+                });
             }
 
             localStorage.setItem('rental_cart', JSON.stringify(cart));
-            alert(`${productName} を ${quantity}個 カートに追加しました！\n右上の「カートを見る」から確認できます。`);
+            alert(`${productName}（${startDate} 〜 ${endDate}）を ${quantity}個 カートに追加しました！`);
         }
     </script>
 </body>
