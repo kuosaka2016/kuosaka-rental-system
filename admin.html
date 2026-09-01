@@ -39,7 +39,7 @@
         th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
         th { background-color: #f7f9fa; color: #206c8c; font-weight: bold; }
         
-        select { padding: 0.4rem; border-radius: 0.4rem; border: 1px solid #ccc; font-family: inherit; cursor: pointer; margin-bottom: 0.5rem; display: block; width: 100%; }
+        select { padding: 0.4rem; border-radius: 0.4rem; border: 1px solid #ccc; font-family: inherit; cursor: pointer; }
         .status-yoyaku { background-color: #fff9c4; }
         .status-kashidashi { background-color: #c8e6c9; }
         .status-henkyaku { background-color: #e0e0e0; }
@@ -58,6 +58,10 @@
 
         .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         .delete-btn:hover { background-color: #ffcdd2; }
+
+        /* ステータスバッジ */
+        .badge-active { background-color: #d1fae5; color: #065f46; padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; }
+        .badge-inactive { background-color: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; }
 
         /* 登録フォーム用のスタイル */
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
@@ -146,7 +150,7 @@
 
             <div class="card">
                 <h2>
-                    📦 登録済み商品一覧（直接編集・画像変更可能）
+                    📦 登録済み商品一覧（公開・非表示切替対応）
                     <!-- カテゴリフィルターボタン -->
                     <div class="filter-menu">
                         <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
@@ -161,14 +165,15 @@
                             <th>画像 / 変更</th>
                             <th>商品名</th>
                             <th>カテゴリ</th>
-                            <th>総在庫数</th>
-                            <th>個体番号一覧 (カンマ区切りで編集)</th>
+                            <th>在庫数</th>
+                            <th>公開状態</th>
+                            <th>個体番号一覧 (カンマ区切り)</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="product-list">
                         <tr>
-                            <td colspan="6" style="text-align: center;">商品を読み込んでいます...</td>
+                            <td colspan="7" style="text-align: center;">商品を読み込んでいます...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -299,7 +304,7 @@
                 renderProductList();
             } catch (err) {
                 console.error(err);
-                document.getElementById('product-list').innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
+                document.getElementById('product-list').innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
             }
         }
 
@@ -310,7 +315,7 @@
             renderProductList();
         }
 
-        // 商品一覧を描画する関数（画像変更用ファイルインプット付き）
+        // 商品一覧を描画する関数（公開・非表示切替プルダウン付き）
         function renderProductList() {
             const tbody = document.getElementById('product-list');
             
@@ -320,7 +325,7 @@
             });
 
             if (filteredProducts.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">該当する商品はありません。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">該当する商品はありません。</td></tr>';
                 return;
             }
 
@@ -336,6 +341,9 @@
                 const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
                 const unitNumbersStr = prodUnits.map(u => u.unit_number).join(', ');
 
+                // is_active が true なら公開、false なら非表示
+                const isActive = prod.is_active !== false;
+
                 tr.innerHTML = `
                     <td>
                         ${imgHtml}
@@ -350,6 +358,12 @@
                         </select>
                     </td>
                     <td><input type="number" id="stock-${prod.id}" value="${prod.total_stock || prodUnits.length}" min="1" class="table-input" style="width: 70px;"></td>
+                    <td>
+                        <select id="active-${prod.id}" class="table-select">
+                            <option value="true" ${isActive ? 'selected' : ''}>🟢 公開中</option>
+                            <option value="false" ${!isActive ? 'selected' : ''}>🔴 非表示（修理中等）</option>
+                        </select>
+                    </td>
                     <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: T-01, T-02"></td>
                     <td>
                         <div class="action-btns">
@@ -404,11 +418,12 @@
             }
         }
 
-        // 行ごとの「変更を保存」ボタンの処理（画像アップロード対応）
+        // 行ごとの「変更を保存」ボタンの処理（is_activeの更新対応）
         async function saveProduct(productId, currentImageUrl) {
             const newName = document.getElementById(`name-${productId}`).value.trim();
             const newCategory = document.getElementById(`cat-${productId}`).value;
             const newStock = parseInt(document.getElementById(`stock-${productId}`).value, 10);
+            const newIsActive = document.getElementById(`active-${productId}`).value === 'true';
             const newUnitsInput = document.getElementById(`units-${productId}`).value.trim();
             const imageFileInput = document.getElementById(`image-file-${productId}`);
             const newImageFile = imageFileInput.files[0];
@@ -421,7 +436,6 @@
             try {
                 let imageUrl = currentImageUrl;
 
-                // 新しい画像ファイルが選ばれている場合はストレージにアップロード
                 if (newImageFile) {
                     const fileExt = newImageFile.name.split('.').pop();
                     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
@@ -439,13 +453,14 @@
                     imageUrl = publicUrlData.publicUrl;
                 }
 
-                // 1. products テーブルの更新（画像URL含む）
+                // 1. products テーブルの更新（is_activeも含む）
                 const { error: prodError } = await supabaseClient
                     .from('products')
                     .update({
                         name: newName,
                         category: newCategory,
                         total_stock: newStock,
+                        is_active: newIsActive,
                         image_url: imageUrl
                     })
                     .eq('id', productId);
