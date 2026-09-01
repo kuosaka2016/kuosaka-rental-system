@@ -43,10 +43,11 @@
     <div class="main-container">
         <h1>トラベル商品一覧</h1>
         
+        <!-- 期間選択バー -->
         <div class="date-filter-bar">
             <div class="date-group">
                 <label for="start-date">レンタル開始日</label>
-                <input type="date" id="start-date" onchange="loadProducts()">
+                <input type="date" id="start-date" onchange="onStartDateChange()">
             </div>
             <div class="date-group">
                 <label for="end-date">レンタル終了日</label>
@@ -65,15 +66,38 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         window.addEventListener('DOMContentLoaded', () => {
-            // デフォルトで今日の日付をセット
             const today = new Date().toISOString().split('T')[0];
             const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
             
-            document.getElementById('start-date').value = today;
-            document.getElementById('end-date').value = tomorrow;
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+
+            startDateInput.value = today;
+            startDateInput.min = today; // 過去の日付は選べないようにする
+
+            endDateInput.value = tomorrow;
+            endDateInput.min = today;
 
             loadProducts();
         });
+
+        // 開始日を変更したときの連動処理
+        function onStartDateChange() {
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            
+            const startDate = startDateInput.value;
+            
+            // 終了日の選択可能な最小値（min）を開始日に合わせる
+            endDateInput.min = startDate;
+
+            //もし終了日が新しい開始日より前になっていたら、終了日を開始日と同じ日に自動調整する
+            if (endDateInput.value < startDate) {
+                endDateInput.value = startDate;
+            }
+
+            loadProducts();
+        }
 
         async function loadProducts() {
             const grid = document.getElementById('product-grid');
@@ -85,14 +109,13 @@
             }
 
             if (startDate > endDate) {
-                alert("開始日は終了日より前の日付にしてください。");
+                alert("終了日は開始日以降の日付に設定してください。");
                 return;
             }
 
             try {
                 grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">空き状況を確認しています...</p>';
 
-                // 1. トラベルカテゴリの商品を取得
                 const { data: products, error: prodError } = await supabaseClient
                     .from('products')
                     .select('*')
@@ -102,19 +125,16 @@
 
                 if (prodError) throw prodError;
 
-                // 2. 個体データ・予約データを取得して、指定期間中の空き状況を計算
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
                 const { data: reservations, error: resError } = await supabaseClient.from('reservations').select('*').neq('status', 'キャンセル');
                 const { data: resItems, error: itemsError } = await supabaseClient.from('reservation_items').select('*');
 
                 if (unitError || resError || itemsError) throw (unitError || resError || itemsError);
 
-                // 指定期間に被っている予約の予約IDリストを抽出
                 const conflictingResIds = reservations.filter(res => {
                     return !(res.end_date < startDate || res.start_date > endDate);
                 }).map(res => res.id);
 
-                // その期間に埋まっている unit_id のリスト
                 const bookedUnitIds = resItems
                     .filter(item => conflictingResIds.includes(item.reservation_id))
                     .map(item => item.unit_id);
@@ -130,10 +150,7 @@
                     const card = document.createElement('div');
                     card.className = 'product-card';
 
-                    // この商品に紐づく個体一覧
                     const prodUnits = units.filter(u => u.product_id === product.id);
-                    
-                    // その中で指定期間に空いている個体数
                     const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
                     const availableCount = availableUnits.length;
 
@@ -177,7 +194,7 @@
             let currentQty = parseInt(displayElement.innerText);
             let newQty = currentQty + change;
             if (newQty < 1) newQty = 1;
-            if (newQty > maxStock) newQty = maxStock; // 空き在庫数を超えて選べないように制限
+            if (newQty > maxStock) newQty = maxStock;
             displayElement.innerText = newQty;
         }
 
@@ -193,11 +210,7 @@
             const cardElement = btnElement.parentElement;
             const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
             
-            // カートに期間も含めて保存する形式に拡張
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
-            
-            // 既存のカート情報に別の期間のものが混ざらないように制御するか、そのまま保持するか
-            // ここではシンプルに商品と数量、期間をセットで保存します
             let existingItem = cart.find(item => item.id === productId && item.startDate === startDate && item.endDate === endDate);
 
             if (existingItem) {
