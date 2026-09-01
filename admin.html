@@ -48,9 +48,13 @@
         .item-list li { margin-bottom: 0.3rem; }
         .unit-number { color: #206c8c; font-weight: bold; font-size: 0.85rem; background-color: #e6f2f5; padding: 0.1rem 0.4rem; border-radius: 0.3rem; display: inline-block; margin-top: 0.1rem; }
 
+        /* テーブル内の入力フィールド（直接編集用） */
+        .table-input { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; }
+        .table-select { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; background-color: white; cursor: pointer; }
+
         .action-btns { display: flex; gap: 0.5rem; }
-        .edit-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
-        .edit-btn:hover { background-color: #bae6fd; }
+        .save-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .save-btn:hover { background-color: #bae6fd; }
 
         .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         .delete-btn:hover { background-color: #ffcdd2; }
@@ -142,7 +146,7 @@
 
             <div class="card">
                 <h2>
-                    📦 登録済み商品一覧
+                    📦 登録済み商品一覧（直接編集可能）
                     <!-- カテゴリフィルターボタン -->
                     <div class="filter-menu">
                         <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
@@ -158,7 +162,7 @@
                             <th>商品名</th>
                             <th>カテゴリ</th>
                             <th>総在庫数</th>
-                            <th>個体番号一覧</th>
+                            <th>個体番号一覧 (カンマ区切りで編集)</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -178,7 +182,6 @@
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // 商品データを保持しておく変数
         let allProductsData = [];
         let allUnitsData = [];
         let currentCategoryFilter = 'all';
@@ -300,7 +303,6 @@
             }
         }
 
-        // カテゴリフィルター切り替え関数
         function filterProducts(category, btnElement) {
             currentCategoryFilter = category;
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
@@ -308,11 +310,10 @@
             renderProductList();
         }
 
-        // 商品一覧を描画する関数
+        // 商品一覧を描画する関数（直接入力できる入力欄を配置）
         function renderProductList() {
             const tbody = document.getElementById('product-list');
             
-            // フィルター適用
             const filteredProducts = allProductsData.filter(prod => {
                 if (currentCategoryFilter === 'all') return true;
                 return prod.category === currentCategoryFilter;
@@ -332,20 +333,25 @@
                     ? `<img src="${prod.image_url}" class="product-thumbnail" alt="商品画像">` 
                     : '<span style="font-size:0.8rem; color:#999;">画像なし</span>';
 
+                // 紐づく個体番号をカンマ区切りの文字列にする
                 const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
-                const unitsHtml = prodUnits.length > 0 
-                    ? prodUnits.map(u => `<span class="unit-number">${u.unit_number}</span>`).join(' ') 
-                    : '<span style="color:#999;">個体なし</span>';
+                const unitNumbersStr = prodUnits.map(u => u.unit_number).join(', ');
 
                 tr.innerHTML = `
                     <td>${imgHtml}</td>
-                    <td><strong>${prod.name}</strong></td>
-                    <td>${prod.category || '未分類'}</td>
-                    <td>${prod.total_stock || prodUnits.length}個</td>
-                    <td>${unitsHtml}</td>
+                    <td><input type="text" id="name-${prod.id}" value="${prod.name}" class="table-input"></td>
+                    <td>
+                        <select id="cat-${prod.id}" class="table-select">
+                            <option value="スポーツ" ${prod.category === 'スポーツ' ? 'selected' : ''}>スポーツ</option>
+                            <option value="アウトドア" ${prod.category === 'アウトドア' ? 'selected' : ''}>アウトドア</option>
+                            <option value="トラベル" ${prod.category === 'トラベル' ? 'selected' : ''}>トラベル</option>
+                        </select>
+                    </td>
+                    <td><input type="number" id="stock-${prod.id}" value="${prod.total_stock || prodUnits.length}" min="1" class="table-input" style="width: 70px;"></td>
+                    <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: T-01, T-02"></td>
                     <td>
                         <div class="action-btns">
-                            <button onclick="editProduct('${prod.id}', '${prod.name}', '${prod.category || ''}', ${prod.total_stock || prodUnits.length})" class="edit-btn">編集</button>
+                            <button onclick="saveProduct('${prod.id}')" class="save-btn">変更を保存</button>
                             <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
                         </div>
                     </td>
@@ -396,41 +402,54 @@
             }
         }
 
-        // 商品の編集処理
-        async function editProduct(productId, currentName, currentCategory, currentStock) {
-            const newName = prompt("新しい商品名を入力してください:", currentName);
-            if (newName === null) return;
+        // 行ごとの「変更を保存」ボタンの処理
+        async function saveProduct(productId) {
+            const newName = document.getElementById(`name-${productId}`).value.trim();
+            const newCategory = document.getElementById(`cat-${productId}`).value;
+            const newStock = parseInt(document.getElementById(`stock-${productId}`).value, 10);
+            const newUnitsInput = document.getElementById(`units-${productId}`).value.trim();
 
-            const categories = ["スポーツ", "アウトドア", "トラベル"];
-            const newCategory = prompt(`カテゴリを選択してください（スポーツ / アウトドア / トラベル）:\n現在のカテゴリ: ${currentCategory}`, currentCategory);
-            if (newCategory === null) return;
-            if (!categories.includes(newCategory)) {
-                alert("カテゴリは「スポーツ」「アウトドア」「トラベル」のいずれかで入力してください。");
-                return;
-            }
-
-            const newStockStr = prompt("新しい総在庫数を入力してください:", currentStock);
-            if (newStockStr === null) return;
-            const newStock = parseInt(newStockStr, 10);
-            if (isNaN(newStock) || newStock < 1) {
-                alert("有効な在庫数（1以上の数値）を入力してください。");
+            if (!newName || !newCategory || isNaN(newStock) || !newUnitsInput) {
+                alert("すべての項目を正しく入力してください。");
                 return;
             }
 
             try {
-                const { error } = await supabaseClient
+                // 1. products テーブルの更新
+                const { error: prodError } = await supabaseClient
                     .from('products')
                     .update({
-                        name: newName.trim(),
+                        name: newName,
                         category: newCategory,
                         total_stock: newStock
                     })
                     .eq('id', productId);
 
-                if (error) throw error;
+                if (prodError) throw prodError;
+
+                // 2. 個体番号（product_units）の更新：一度既存の個体をすべて削除し、新しく登録し直す
+                const { error: delError } = await supabaseClient
+                    .from('product_units')
+                    .delete()
+                    .eq('product_id', productId);
+
+                if (delError) throw delError;
+
+                const unitNumbers = newUnitsInput.split(',').map(u => u.trim()).filter(u => u !== '');
+                const unitRows = unitNumbers.map(uNum => ({
+                    product_id: productId,
+                    unit_number: uNum
+                }));
+
+                const { error: unitError } = await supabaseClient
+                    .from('product_units')
+                    .insert(unitRows);
+
+                if (unitError) throw unitError;
 
                 alert("商品情報を更新しました！");
-                loadProducts();
+                loadProducts(); // リストを再読み込み
+
             } catch (err) {
                 console.error(err);
                 alert("更新に失敗しました。\n" + err.message);
