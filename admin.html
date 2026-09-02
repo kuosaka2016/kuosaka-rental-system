@@ -3,126 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>社内レンタル予約 | 管理画面</title>
     <meta name="robots" content="noindex, nofollow">
+    <title>社内レンタル予約 | 管理画面</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <!-- QRコード読み取り用ライブラリ -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; color: #333; }
         .header { background-color: #333; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 1.5rem; }
         .back-link { color: white; text-decoration: none; font-size: 0.9rem; }
         .back-link:hover { text-decoration: underline; }
+        
         .main-container { padding: 2rem; max-width: 1400px; margin: 0 auto; }
         
-        /* タブ切り替えボタン */
+        /* タブ切り替えボタンのスタイル */
         .tab-menu { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
         .tab-btn { background-color: #e2e8f0; color: #475569; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s, color 0.2s; }
         .tab-btn.active { background-color: #206c8c; color: white; }
-        
+        .tab-btn:hover { background-color: #cbd5e1; }
+        .tab-btn.active:hover { background-color: #174d63; }
+
         /* セクションの表示切り替え */
         .admin-section { display: none; }
         .admin-section.active { display: block; }
 
-        .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; margin-bottom: 2rem; overflow-x: auto; }
-        h2 { margin-top: 0; color: #206c8c; font-size: 1.3rem; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
-
-        /* QRスキャナーエリア */
-        .scanner-container { background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 1rem; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
-        #reader { width: 100%; max-width: 400px; margin: 0 auto; display: none; }
-        .scan-btn { background-color: #0f766e; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
-        .scan-btn:hover { background-color: #115e59; }
-
-        /* テーブル */
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
-        th, td { padding: 0.8rem 1rem; border-bottom: 1px solid #e2e8f0; }
-        th { background-color: #f8fafc; color: #475569; font-weight: bold; }
+        .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; margin-bottom: 2rem; }
+        .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
         
-        .status-badge { padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.85rem; font-weight: bold; display: inline-block; }
-        .status-reserved { background-color: #fef3c7; color: #d97706; }
-        .status-renting { background-color: #e0f2fe; color: #0284c7; }
-        .status-returned { background-color: #dcfce7; color: #16a34a; }
-        .status-cancelled { background-color: #fee2e2; color: #dc2626; }
+        /* QRスキャナー用のスタイル */
+        .scanner-box { background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 0.8rem; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
+        #reader { width: 100%; max-width: 350px; margin: 0 auto; display: none; margin-bottom: 1rem; }
+        .scan-toggle-btn { background-color: #0f766e; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
+        .scan-toggle-btn:hover { background-color: #115e59; }
 
-        select { padding: 0.4rem; border-radius: 0.4rem; border: 1px solid #cbd5e1; font-family: inherit; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 0.3rem; color: #475569; }
-        .form-group input, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; box-sizing: border-box; }
-        .submit-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        /* フィルター用のボタンスタイル */
+        .filter-menu { display: flex; gap: 0.5rem; }
+        .filter-btn { background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .filter-btn.active { background-color: #206c8c; color: white; border-color: #206c8c; }
+        .filter-btn:hover { background-color: #e2e8f0; }
+
+        table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
+        th { background-color: #f7f9fa; color: #206c8c; font-weight: bold; }
+        
+        select { padding: 0.4rem; border-radius: 0.4rem; border: 1px solid #ccc; font-family: inherit; cursor: pointer; }
+        .status-yoyaku { background-color: #fff9c4; }
+        .status-kashidashi { background-color: #c8e6c9; }
+        .status-henkyaku { background-color: #e0e0e0; }
+        
+        .item-list { margin: 0; padding-left: 1.2rem; font-size: 0.9rem; }
+        .item-list li { margin-bottom: 0.3rem; }
+        .unit-number { color: #206c8c; font-weight: bold; font-size: 0.85rem; background-color: #e6f2f5; padding: 0.1rem 0.4rem; border-radius: 0.3rem; display: inline-block; margin-top: 0.1rem; }
+
+        /* テーブル内の入力フィールド（直接編集用） */
+        .table-input { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; }
+        .table-select { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; background-color: white; cursor: pointer; }
+
+        .action-btns { display: flex; gap: 0.5rem; }
+        .save-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .save-btn:hover { background-color: #bae6fd; }
+
+        .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .delete-btn:hover { background-color: #ffcdd2; }
+
+        /* ステータスバッジ */
+        .badge-active { background-color: #d1fae5; color: #065f46; padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; }
+        .badge-inactive { background-color: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; }
+
+        /* 登録フォーム用のスタイル */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.3rem; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; box-sizing: border-box; background-color: #fff; }
+        .form-group input[type="file"] { padding: 0.4rem; background-color: #f9f9f9; cursor: pointer; }
+        .submit-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; }
         .submit-btn:hover { background-color: #174d63; }
+
+        .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 0.3rem; background-color: #eee; display: block; margin-bottom: 0.3rem; }
     </style>
 </head>
 <body>
-
     <div class="header">
-        <h1>社内レンタルシステム管理画面</h1>
-        <a href="index.html" class="back-link">&larr; ユーザー画面へ戻る</a>
+        <h1>レンタル管理ダッシュボード</h1>
+        <a href="index.html" class="back-link">トップページに戻る</a>
     </div>
 
     <div class="main-container">
-        <!-- タブメニュー -->
         <div class="tab-menu">
-            <button class="tab-btn active" onclick="switchTab('reservations')">予約・貸出管理</button>
-            <button class="tab-btn" onclick="switchTab('products')">商品・個体管理</button>
+            <button class="tab-btn active" onclick="switchTab('reservations', this)">📋 予約一覧・管理</button>
+            <button class="tab-btn" onclick="switchTab('products', this)">📦 商品一覧・新規追加</button>
         </div>
 
-        <!-- タブ1: 予約・貸出管理セクション -->
         <div id="section-reservations" class="admin-section active">
             
-            <!-- カメラQRスキャナーボックス -->
             <div class="card">
-                <h2>📷 QR/バーコードでステータス変更</h2>
-                <div class="scanner-container">
-                    <p style="margin-top:0; font-size: 0.9rem; color: #64748b;">個体（unit_id または 予約ID）のQRコードをカメラで読み取ると、ステータスを自動更新できます。</p>
-                    <button class="scan-btn" id="start-scan-btn" onclick="toggleScanner()">スキャナーを起動する</button>
+                <h2>📷 QRコードでステータス変更（カメラ読取）</h2>
+                <div class="scanner-box">
+                    <p style="margin-top: 0; font-size: 0.9rem; color: #64748b;">予約IDまたは個体（ユニット）のQRコードを読み取ると、自動でステータスを進行させます。</p>
+                    <button class="scan-toggle-btn" id="scan-toggle-btn" onclick="toggleScanner()">スキャナーを起動する</button>
                     <div id="reader"></div>
                 </div>
             </div>
 
             <div class="card">
-                <h2>予約・貸出一覧</h2>
-                <div id="reservations-table-container">
-                    <p>データを読み込んでいます...</p>
-                </div>
+                <h2>📋 予約・貸出管理一覧</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>申込日時</th>
+                            <th>所属</th>
+                            <th>氏名</th>
+                            <th>予約商品 ＆ 個体番号</th>
+                            <th>レンタル期間</th>
+                            <th>メールアドレス</th>
+                            <th>ステータス / 操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservation-list">
+                        <tr>
+                            <td colspan="7" style="text-align: center;">データを読み込んでいます...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- タブ2: 商品・個体管理セクション -->
         <div id="section-products" class="admin-section">
             <div class="card">
-                <h2>新規商品登録</h2>
-                <form id="product-form">
+                <h2>➕ 新規レンタル品の追加（画像アップロード対応）</h2>
+                <form id="add-item-form">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="p-name">商品名</label>
-                            <input type="text" id="p-name" required placeholder="例: モバイルプロジェクター">
+                            <label for="product-name">商品名</label>
+                            <input type="text" id="product-name" required placeholder="例: テント">
                         </div>
                         <div class="form-group">
-                            <label for="p-category">カテゴリ</label>
-                            <select id="p-category" required>
-                                <option value="トラベル">トラベル</option>
+                            <label for="product-category">カテゴリ</label>
+                            <select id="product-category" required>
+                                <option value="" disabled selected>選択してください</option>
                                 <option value="スポーツ">スポーツ</option>
                                 <option value="アウトドア">アウトドア</option>
+                                <option value="トラベル">トラベル</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="p-stock">総個体数（固有IDを自動生成します）</label>
-                            <input type="number" id="p-stock" min="1" value="1" required>
+                            <label for="total-stock">総在庫数 (数値)</label>
+                            <input type="number" id="total-stock" required min="1" value="1">
                         </div>
                         <div class="form-group">
-                            <label for="p-image">画像URL (任意)</label>
-                            <input type="url" id="p-image" placeholder="https://...">
+                            <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
+                            <input type="text" id="unit-numbers" required placeholder="例: T-01, T-02">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="product-image">商品画像ファイル（任意）</label>
+                            <input type="file" id="product-image" accept="image/*">
                         </div>
                     </div>
-                    <button type="submit" class="submit-btn" id="p-submit-btn">商品を登録する</button>
+                    <button type="submit" class="submit-btn">この内容でアイテムを追加する</button>
                 </form>
             </div>
 
             <div class="card">
-                <h2>登録済み商品・個体一覧</h2>
-                <div id="products-table-container">
-                    <p>データを読み込んでいます...</p>
-                </div>
+                <h2>
+                    📦 登録済み商品一覧（公開・非表示切替対応）
+                    <div class="filter-menu">
+                        <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
+                        <button class="filter-btn" onclick="filterProducts('スポーツ', this)">スポーツ</button>
+                        <button class="filter-btn" onclick="filterProducts('アウトドア', this)">アウトドア</button>
+                        <button class="filter-btn" onclick="filterProducts('トラベル', this)">トラベル</button>
+                    </div>
+                </h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>画像 / 変更</th>
+                            <th>商品名</th>
+                            <th>カテゴリ</th>
+                            <th>在庫数</th>
+                            <th>公開状態</th>
+                            <th>個体番号一覧 (カンマ区切り)</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-list">
+                        <tr>
+                            <td colspan="7" style="text-align: center;">商品を読み込んでいます...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -130,36 +197,37 @@
     <script>
         const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
+
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allProductsData = [];
+        let allUnitsData = [];
+        let currentCategoryFilter = 'all';
 
         let html5QrCode = null;
         let isScannerRunning = false;
 
         window.addEventListener('DOMContentLoaded', () => {
             loadReservations();
-            loadProductsManagement();
+            loadProducts();
         });
 
-        // タブ切り替え
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        // タブ切り替え関数
+        function switchTab(tabName, btnElement) {
             document.querySelectorAll('.admin-section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
 
             if (tabName === 'reservations') {
-                document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
                 document.getElementById('section-reservations').classList.add('active');
-                loadReservations();
-                if (isScannerRunning) stopScanner(); // タブ切り替え時はスキャナーを停止
-            } else {
-                document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+            } else if (tabName === 'products') {
                 document.getElementById('section-products').classList.add('active');
-                loadProductsManagement();
-                if (isScannerRunning) stopScanner();
+                if (isScannerRunning) stopScanner(); // 別タブに移動したときはスキャナーを停止
             }
+            btnElement.classList.add('active');
         }
 
         // ==========================================
-        // 1. QRスキャナー機能
+        // QRコードスキャナー関連の機能
         // ==========================================
         function toggleScanner() {
             if (!isScannerRunning) {
@@ -172,23 +240,21 @@
         function startScanner() {
             const readerDiv = document.getElementById('reader');
             readerDiv.style.display = 'block';
-            document.getElementById('start-scan-btn').innerText = 'スキャナーを停止する';
-            document.getElementById('start-scan-btn').style.backgroundColor = '#dc2626';
+            document.getElementById('scan-toggle-btn').innerText = 'スキャナーを停止する';
+            document.getElementById('scan-toggle-btn').style.backgroundColor = '#dc2626';
 
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start(
-                { facingMode: "environment" }, // 背面カメラを使用
+                { facingMode: "environment" }, // 外側カメラを使用
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 async (decodedText) => {
-                    // QRコードが読み取られたときの処理
-                    // 読み取ったテキスト（例: 予約ID または 個体ID）を元に対応を決定
                     await handleScannedCode(decodedText.trim());
                 },
                 (errorMessage) => {
-                    // 読み取り中のエラー（スキャン範囲内に対象がない場合などは頻繁に出るため無視してOK）
+                    // スキャン中のエラーは無視
                 }
             ).catch(err => {
-                alert("カメラの起動に失敗しました。カメラの権限を確認してください。\n" + err);
+                alert("カメラの起動に失敗しました。ブラウザのカメラ権限を確認してください。\n" + err);
                 stopScanner();
             });
 
@@ -199,8 +265,8 @@
             if (html5QrCode && isScannerRunning) {
                 html5QrCode.stop().then(() => {
                     document.getElementById('reader').style.display = 'none';
-                    document.getElementById('start-scan-btn').innerText = 'スキャナーを起動する';
-                    document.getElementById('start-scan-btn').style.backgroundColor = '#0f766e';
+                    document.getElementById('scan-toggle-btn').innerText = 'スキャナーを起動する';
+                    document.getElementById('scan-toggle-btn').style.backgroundColor = '#0f766e';
                     isScannerRunning = false;
                 }).catch(err => {
                     console.error("スキャナー停止エラー", err);
@@ -208,42 +274,39 @@
             }
         }
 
-        // スキャンされたコードを基にステータスを進めるロジック
+        // 読み取ったQRコードから予約を特定してステータスを進める処理
         async function handleScannedCode(codeText) {
-            // 例: codeText が 「予約ID」または「個体ID(unit_id)」であると仮定
-            // まずは「予約ID」として一致するものがあるか確認
-            let { data: resData, error: resErr } = await supabaseClient
+            // 1. 読み取った文字列が「予約ID」そのものだった場合
+            let { data: resData } = await supabaseClient
                 .from('reservations')
                 .select('*')
                 .eq('id', codeText)
                 .single();
 
             if (resData) {
-                // 予約が見つかった場合：ステータスを次の段階へ進める（予約中 -> 貸出中 -> 返却済）
                 let nextStatus = '';
                 if (resData.status === '予約中') nextStatus = '貸出中';
                 else if (resData.status === '貸出中') nextStatus = '返却済';
                 else {
-                    alert(`この予約（ID: ${codeText.slice(0,8)}...）はすでに「${resData.status}」です。`);
+                    alert(`この予約（利用者: ${resData.user_name}）はすでに「${resData.status}」です。`);
                     return;
                 }
 
                 if (confirm(`【予約検出】\n利用者: ${resData.user_name} (${resData.department})\n現在の状態: ${resData.status}\n\nステータスを「${nextStatus}」に変更しますか？`)) {
-                    await updateReservationStatusDirect(resData.id, nextStatus);
+                    await updateStatusDirect(resData.id, nextStatus);
                 }
                 return;
             }
 
-            // 次に「個体ID (unit_id)」から、現在貸出中/予約中の該当アイテムを探すアプローチ
-            let { data: itemData, error: itemErr } = await supabaseClient
+            // 2. 読み取った文字列が「個体ID (unit_id)」だった場合
+            let { data: itemData } = await supabaseClient
                 .from('reservation_items')
                 .select('reservation_id')
                 .eq('unit_id', codeText);
 
             if (itemData && itemData.length > 0) {
-                // この個体に紐づく最新の有効な予約を取得
                 const resIds = itemData.map(i => i.reservation_id);
-                let { data: activeRes, error: actErr } = await supabaseClient
+                let { data: activeRes } = await supabaseClient
                     .from('reservations')
                     .select('*')
                     .in('id', resIds)
@@ -255,8 +318,8 @@
                     const target = activeRes[0];
                     let nextStatus = target.status === '予約中' ? '貸出中' : '返却済';
 
-                    if (confirm(`【個別アイテム検出】\n個体ID: ${codeText.slice(0,8)}...\n利用者: ${target.user_name}\n\nステータスを「${nextStatus}」に変更しますか？`)) {
-                        await updateReservationStatusDirect(target.id, nextStatus);
+                    if (confirm(`【個体検出】\n対象ユニットID: ${codeText.slice(0, 8)}...\n利用者: ${target.user_name}\n\nステータスを「${nextStatus}」に変更しますか？`)) {
+                        await updateStatusDirect(target.id, nextStatus);
                     }
                     return;
                 }
@@ -265,216 +328,383 @@
             alert(`読み取ったコード（${codeText}）に一致する有効な予約が見つかりませんでした。`);
         }
 
-        async function updateReservationStatusDirect(resId, newStatus) {
-            const { error } = await supabaseClient
-                .from('reservations')
-                .update({ status: newStatus })
-                .eq('id', resId);
+        async function updateStatusDirect(reservationId, newStatus) {
+            try {
+                const { error } = await supabaseClient
+                    .from('reservations')
+                    .update({ status: newStatus })
+                    .eq('id', reservationId);
 
-            if (error) {
-                alert("ステータスの更新に失敗しました: " + error.message);
-            } else {
+                if (error) throw error;
                 alert(`ステータスを「${newStatus}」に更新しました！`);
+                loadReservations();
+            } catch (err) {
+                console.error(err);
+                alert("ステータスの更新に失敗しました: " + err.message);
                 loadReservations();
             }
         }
 
 
         // ==========================================
-        // 2. 予約・貸出管理の描画と通常変更
+        // 既存の予約・商品管理機能
         // ==========================================
         async function loadReservations() {
-            const container = document.getElementById('reservations-table-container');
-            container.innerHTML = '<p>読み込み中...</p>';
-
+            const tbody = document.getElementById('reservation-list');
             try {
-                const { data: reservations, error } = await supabaseClient
+                const { data: reservations, error: resError } = await supabaseClient
                     .from('reservations')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .order('id', { ascending: false });
 
-                if (error) throw error;
+                const { data: resItems, error: itemsError } = await supabaseClient
+                    .from('reservation_items')
+                    .select('*');
+
+                const { data: products, error: prodError } = await supabaseClient
+                    .from('products')
+                    .select('*');
+
+                const { data: units, error: unitError } = await supabaseClient
+                    .from('product_units')
+                    .select('*');
+
+                if (resError) throw resError;
+                if (itemsError) throw itemsError;
+                if (prodError) throw prodError;
+                if (unitError) throw unitError;
 
                 if (!reservations || reservations.length === 0) {
-                    container.innerHTML = '<p>予約データがありません。</p>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">現在、予約はありません。</td></tr>';
                     return;
                 }
 
-                let html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>期間</th>
-                                <th>所属・氏名</th>
-                                <th>ステータス</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
+                tbody.innerHTML = '';
 
                 reservations.forEach(res => {
-                    let badgeClass = 'status-reserved';
-                    if (res.status === '貸出中') badgeClass = 'status-renting';
-                    else if (res.status === '返却済') badgeClass = 'status-returned';
-                    else if (res.status === 'キャンセル') badgeClass = 'status-cancelled';
+                    const tr = document.createElement('tr');
+                    
+                    const createdAt = res.created_at ? new Date(res.created_at).toLocaleString('ja-JP') : '不明';
+                    const currentStatus = res.status || '予約中';
 
-                    html += `
-                        <tr>
-                            <td>${res.start_date} 〜 ${res.end_date}</td>
-                            <td><strong>${res.department}</strong><br>${res.user_name}</td>
-                            <td><span class="status-badge ${badgeClass}">${res.status}</span></td>
-                            <td>
-                                <select onchange="updateStatus('${res.id}', this.value)">
-                                    <option value="予約中" ${res.status === '予約中' ? 'selected' : ''}>予約中</option>
-                                    <option value="貸出中" ${res.status === '貸出中' ? 'selected' : ''}>貸出中</option>
-                                    <option value="返却済" ${res.status === '返却済' ? 'selected' : ''}>返却済</option>
-                                    <option value="キャンセル" ${res.status === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
-                                </select>
-                            </td>
-                        </tr>
+                    const myItems = resItems.filter(item => item.reservation_id === res.id);
+                    
+                    const itemsHtml = myItems.map(item => {
+                        const product = products.find(p => p.id === item.product_id);
+                        const productName = product ? product.name : '不明な商品';
+                        
+                        const unit = units.find(u => u.id === item.unit_id);
+                        const unitNumberStr = unit ? `<br><span class="unit-number">個体: ${unit.unit_number}</span>` : '';
+
+                        return `<li>${productName} (${item.quantity}個)${unitNumberStr}</li>`;
+                    }).join('');
+
+                    tr.innerHTML = `
+                        <td style="font-size: 0.9rem; color: #666;">${createdAt}</td>
+                        <td>${res.department}</td>
+                        <td><strong>${res.user_name}</strong></td>
+                        <td><ul class="item-list">${itemsHtml || '<li>商品データなし</li>'}</ul></td>
+                        <td>${res.start_date} <br>〜 ${res.end_date}</td>
+                        <td><a href="mailto:${res.email}" style="font-size: 0.9rem;">${res.email}</a></td>
+                        <td>
+                            <select onchange="updateStatus('${res.id}', this.value)" class="${getStatusClass(currentStatus)}">
+                                <option value="予約中" ${currentStatus === '予約中' ? 'selected' : ''}>予約中</option>
+                                <option value="貸出済" ${currentStatus === '貸出済' ? 'selected' : ''}>貸出済</option>
+                                <option value="返却済" ${currentStatus === '返却済' ? 'selected' : ''}>返却済</option>
+                                <option value="キャンセル" ${currentStatus === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
+                            </select>
+                            <button onclick="deleteReservation('${res.id}')" class="delete-btn">予約を削除</button>
+                        </td>
                     `;
+                    tbody.appendChild(tr);
                 });
-
-                html += '</tbody></table>';
-                container.innerHTML = html;
-
             } catch (err) {
                 console.error(err);
-                container.innerHTML = `<p style="color:red;">データの読み込みに失敗しました: ${err.message}</p>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
             }
         }
 
-        async function updateStatus(resId, newStatus) {
-            const { error } = await supabaseClient
-                .from('reservations')
-                .update({ status: newStatus })
-                .eq('id', resId);
+        async function loadProducts() {
+            try {
+                const { data: products, error: prodError } = await supabaseClient
+                    .from('products')
+                    .select('*')
+                    .order('name');
 
-            if (error) {
-                alert("更新に失敗しました: " + error.message);
-            } else {
-                loadReservations(); // 再描画
+                const { data: units, error: unitError } = await supabaseClient
+                    .from('product_units')
+                    .select('*');
+
+                if (prodError) throw prodError;
+                if (unitError) throw unitError;
+
+                allProductsData = products || [];
+                allUnitsData = units || [];
+
+                renderProductList();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('product-list').innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
             }
         }
 
+        function filterProducts(category, btnElement) {
+            currentCategoryFilter = category;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            renderProductList();
+        }
 
-        // ==========================================
-        // 3. 商品・個体管理
-        // ==========================================
-        async function loadProductsManagement() {
-            const container = document.getElementById('products-table-container');
-            container.innerHTML = '<p>読み込み中...</p>';
+        function renderProductList() {
+            const tbody = document.getElementById('product-list');
+            
+            const filteredProducts = allProductsData.filter(prod => {
+                if (currentCategoryFilter === 'all') return true;
+                return prod.category === currentCategoryFilter;
+            });
+
+            if (filteredProducts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">該当する商品はありません。</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            filteredProducts.forEach(prod => {
+                const tr = document.createElement('tr');
+                
+                const imgHtml = prod.image_url 
+                    ? `<img src="${prod.image_url}" class="product-thumbnail" alt="商品画像">` 
+                    : '<span style="font-size:0.8rem; color:#999; display:block; margin-bottom:0.3rem;">画像なし</span>';
+
+                const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
+                const unitNumbersStr = prodUnits.map(u => u.unit_number).join(', ');
+
+                const isActive = prod.is_active !== false;
+
+                tr.innerHTML = `
+                    <td>
+                        ${imgHtml}
+                        <input type="file" id="image-file-${prod.id}" accept="image/*" style="font-size: 0.75rem; width: 130px;">
+                    </td>
+                    <td><input type="text" id="name-${prod.id}" value="${prod.name}" class="table-input"></td>
+                    <td>
+                        <select id="cat-${prod.id}" class="table-select">
+                            <option value="スポーツ" ${prod.category === 'スポーツ' ? 'selected' : ''}>スポーツ</option>
+                            <option value="アウトドア" ${prod.category === 'アウトドア' ? 'selected' : ''}>アウトドア</option>
+                            <option value="トラベル" ${prod.category === 'トラベル' ? 'selected' : ''}>トラベル</option>
+                        </select>
+                    </td>
+                    <td><input type="number" id="stock-${prod.id}" value="${prod.total_stock || prodUnits.length}" min="1" class="table-input" style="width: 70px;"></td>
+                    <td>
+                        <select id="active-${prod.id}" class="table-select">
+                            <option value="true" ${isActive ? 'selected' : ''}>🟢 公開中</option>
+                            <option value="false" ${!isActive ? 'selected' : ''}>🔴 非表示（修理中等）</option>
+                        </select>
+                    </td>
+                    <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: T-01, T-02"></td>
+                    <td>
+                        <div class="action-btns">
+                            <button onclick="saveProduct('${prod.id}', '${prod.image_url || ''}')" class="save-btn">変更を保存</button>
+                            <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getStatusClass(status) {
+            if (status === '予約中') return 'status-yoyaku';
+            if (status === '貸出済') return 'status-kashidashi';
+            if (status === '返却済') return 'status-henkyaku';
+            return '';
+        }
+
+        async function updateStatus(reservationId, newStatus) {
+            try {
+                const { error } = await supabaseClient
+                    .from('reservations')
+                    .update({ status: newStatus })
+                    .eq('id', reservationId);
+
+                if (error) throw error;
+                alert(`ステータスを「${newStatus}」に更新しました。`);
+                loadReservations(); 
+            } catch (err) {
+                console.error(err);
+                alert("更新に失敗しました。\n" + err.message);
+                loadReservations(); 
+            }
+        }
+
+        async function deleteReservation(reservationId) {
+            if (!confirm("本当にこの予約を削除しますか？\n削除すると、この期間の個体（在庫）が再び予約可能になります。")) return;
 
             try {
-                const { data: products, error: prodErr } = await supabaseClient.from('products').select('*').order('name');
-                const { data: units, error: unitErr } = await supabaseClient.from('product_units').select('*');
+                const { error: itemError } = await supabaseClient.from('reservation_items').delete().eq('reservation_id', reservationId);
+                if (itemError) throw itemError;
 
-                if (prodErr || unitErr) throw (prodErr || unitErr);
+                const { error: resError } = await supabaseClient.from('reservations').delete().eq('id', reservationId);
+                if (resError) throw resError;
 
-                if (!products || products.length === 0) {
-                    container.innerHTML = '<p>商品が登録されていません。</p>';
-                    return;
+                loadReservations();
+            } catch (err) {
+                console.error(err);
+                alert("削除に失敗しました。\n" + err.message);
+                loadReservations();
+            }
+        }
+
+        async function saveProduct(productId, currentImageUrl) {
+            const newName = document.getElementById(`name-${productId}`).value.trim();
+            const newCategory = document.getElementById(`cat-${productId}`).value;
+            const newStock = parseInt(document.getElementById(`stock-${productId}`).value, 10);
+            const newIsActive = document.getElementById(`active-${productId}`).value === 'true';
+            const newUnitsInput = document.getElementById(`units-${productId}`).value.trim();
+            const imageFileInput = document.getElementById(`image-file-${productId}`);
+            const newImageFile = imageFileInput.files[0];
+
+            if (!newName || !newCategory || isNaN(newStock) || !newUnitsInput) {
+                alert("すべての項目を正しく入力してください。");
+                return;
+            }
+
+            try {
+                let imageUrl = currentImageUrl;
+
+                if (newImageFile) {
+                    const fileExt = newImageFile.name.split('.').pop();
+                    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+                    
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from('product-images')
+                        .upload(fileName, newImageFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabaseClient.storage
+                        .from('product-images')
+                        .getPublicUrl(fileName);
+
+                    imageUrl = publicUrlData.publicUrl;
                 }
 
-                let html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>商品名</th>
-                                <th>カテゴリ</th>
-                                <th>個体数 (ユニット)</th>
-                                <th>アクション</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
+                const { error: prodError } = await supabaseClient
+                    .from('products')
+                    .update({
+                        name: newName,
+                        category: newCategory,
+                        total_stock: newStock,
+                        is_active: newIsActive,
+                        image_url: imageUrl
+                    })
+                    .eq('id', productId);
 
-                products.forEach(p => {
-                    const pUnits = units.filter(u => u.product_id === p.id);
-                    html += `
-                        <tr>
-                            <td><strong>${p.name}</strong></td>
-                            <td>${p.category}</td>
-                            <td>${pUnits.length} 個</td>
-                            <td>
-                                <button onclick="toggleProductActive('${p.id}', ${!p.is_active})" style="padding: 0.3rem 0.6rem; font-size: 0.85rem; cursor: pointer;">
-                                    ${p.is_active ? '無効化する' : '有効化する'}
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
+                if (prodError) throw prodError;
 
-                html += '</tbody></table>';
-                container.innerHTML = html;
+                const { error: delError } = await supabaseClient
+                    .from('product_units')
+                    .delete()
+                    .eq('product_id', productId);
+
+                if (delError) throw delError;
+
+                const unitNumbers = newUnitsInput.split(',').map(u => u.trim()).filter(u => u !== '');
+                const unitRows = unitNumbers.map(uNum => ({
+                    product_id: productId,
+                    unit_number: uNum
+                }));
+
+                const { error: unitError } = await supabaseClient
+                    .from('product_units')
+                    .insert(unitRows);
+
+                if (unitError) throw unitError;
+
+                alert("商品情報を更新しました！");
+                loadProducts(); 
 
             } catch (err) {
                 console.error(err);
-                container.innerHTML = `<p style="color:red;">商品データの読み込みに失敗しました: ${err.message}</p>`;
+                alert("更新に失敗しました。\n" + err.message);
             }
         }
 
-        // 商品新規登録
-        document.getElementById('product-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('p-name').value.trim();
-            const category = document.getElementById('p-category').value;
-            const stock = parseInt(document.getElementById('p-stock').value);
-            const imageUrl = document.getElementById('p-image').value.trim();
-
-            const submitBtn = document.getElementById('p-submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.innerText = "登録中...";
+        async function deleteProduct(productId) {
+            if (!confirm("本当にこの商品を削除しますか？\n紐づく個体データも一緒に削除されます。")) return;
 
             try {
-                // 1. products テーブルに登録
-                const { data: prodData, error: prodErr } = await supabaseClient
+                await supabaseClient.from('product_units').delete().eq('product_id', productId);
+                const { error } = await supabaseClient.from('products').delete().eq('id', productId);
+                if (error) throw error;
+
+                alert("商品を削除しました。");
+                loadProducts();
+            } catch (err) {
+                console.error(err);
+                alert("削除に失敗しました。\n" + err.message);
+            }
+        }
+
+        document.getElementById('add-item-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('product-name').value.trim();
+            const category = document.getElementById('product-category').value;
+            const totalStock = parseInt(document.getElementById('total-stock').value, 10);
+            const unitInput = document.getElementById('unit-numbers').value.trim();
+            const imageFile = document.getElementById('product-image').files[0];
+
+            if (!name || !category || isNaN(totalStock) || !unitInput) {
+                alert("すべての必須項目を正しく入力・選択してください。");
+                return;
+            }
+
+            try {
+                let imageUrl = null;
+                if (imageFile) {
+                    const fileExt = imageFile.name.split('.').pop();
+                    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+                    
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from('product-images')
+                        .upload(fileName, imageFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabaseClient.storage
+                        .from('product-images')
+                        .getPublicUrl(fileName);
+
+                    imageUrl = publicUrlData.publicUrl;
+                }
+
+                const { data: insertedProduct, error: prodError } = await supabaseClient
                     .from('products')
-                    .insert([{ name, category, image_url: imageUrl || null, is_active: true }])
+                    .insert([{ name: name, category: category, total_stock: totalStock, is_active: true, image_url: imageUrl }])
                     .select()
                     .single();
 
-                if (prodErr) throw prodErr;
-                const productId = prodData.id;
+                if (prodError) throw prodError;
 
-                // 2. 指定された個数分 product_units (個体) を自動生成
-                let unitsToInsert = [];
-                for (let i = 0; i < stock; i++) {
-                    unitsToInsert.push({ product_id: productId });
-                }
+                const unitNumbers = unitInput.split(',').map(u => u.trim()).filter(u => u !== '');
+                const unitRows = unitNumbers.map(uNum => ({ product_id: insertedProduct.id, unit_number: uNum }));
 
-                const { error: unitErr } = await supabaseClient
-                    .from('product_units')
-                    .insert(unitsToInsert);
+                const { error: unitError } = await supabaseClient.from('product_units').insert(unitRows);
+                if (unitError) throw unitError;
 
-                if (unitErr) throw unitErr;
-
-                alert("商品を登録し、個体ユニットを生成しました！");
-                document.getElementById('product-form').reset();
-                loadProductsManagement();
+                alert(`新しいアイテム「${name}」を登録しました！`);
+                document.getElementById('add-item-form').reset();
+                document.getElementById('total-stock').value = "1";
+                
+                loadProducts();
 
             } catch (err) {
                 console.error(err);
-                alert("登録エラー: " + err.message);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = "商品を登録する";
+                alert("アイテムの登録に失敗しました。\n" + err.message);
             }
         });
-
-        async function toggleProductActive(productId, newStatus) {
-            const { error } = await supabaseClient
-                .from('products')
-                .update({ is_active: newStatus })
-                .eq('id', productId);
-
-            if (error) {
-                alert("更新エラー: " + error.message);
-            } else {
-                loadProductsManagement();
-            }
-        }
     </script>
 </body>
 </html>
