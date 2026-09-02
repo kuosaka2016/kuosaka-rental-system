@@ -27,10 +27,10 @@
         .admin-section.active { display: block; }
 
         .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; margin-bottom: 2rem; }
-        .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
         
         /* フィルター用のボタンスタイル */
-        .filter-menu { display: flex; gap: 0.5rem; }
+        .filter-menu { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .filter-btn { background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         .filter-btn.active { background-color: #206c8c; color: white; border-color: #206c8c; }
         .filter-btn:hover { background-color: #e2e8f0; }
@@ -81,16 +81,23 @@
     </div>
 
     <div class="main-container">
-        <!-- 切り替えタブボタン -->
         <div class="tab-menu">
             <button class="tab-btn active" onclick="switchTab('reservations', this)">📋 予約一覧・管理</button>
             <button class="tab-btn" onclick="switchTab('products', this)">📦 商品一覧・新規追加</button>
         </div>
 
-        <!-- ① 予約一覧セクション -->
         <div id="section-reservations" class="admin-section active">
             <div class="card">
-                <h2>📋 予約・貸出管理一覧</h2>
+                <h2>
+                    📋 予約・貸出管理一覧
+                    <div class="filter-menu">
+                        <button class="filter-btn active" onclick="filterReservations('all', this)">すべて</button>
+                        <button class="filter-btn" onclick="filterReservations('予約中', this)">予約中</button>
+                        <button class="filter-btn" onclick="filterReservations('貸出済', this)">貸出済</button>
+                        <button class="filter-btn" onclick="filterReservations('返却済', this)">返却済</button>
+                        <button class="filter-btn" onclick="filterReservations('キャンセル', this)">キャンセル</button>
+                    </div>
+                </h2>
                 <table>
                     <thead>
                         <tr>
@@ -112,7 +119,6 @@
             </div>
         </div>
 
-        <!-- ② 商品一覧・新規追加セクション -->
         <div id="section-products" class="admin-section">
             <div class="card">
                 <h2>➕ 新規レンタル品の追加（画像アップロード対応）</h2>
@@ -151,7 +157,6 @@
             <div class="card">
                 <h2>
                     📦 登録済み商品一覧（公開・非表示切替対応）
-                    <!-- カテゴリフィルターボタン -->
                     <div class="filter-menu">
                         <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
                         <button class="filter-btn" onclick="filterProducts('スポーツ', this)">スポーツ</button>
@@ -187,8 +192,11 @@
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        let allReservationsData = [];
+        let allResItemsData = [];
         let allProductsData = [];
         let allUnitsData = [];
+        let currentStatusFilter = 'all';
         let currentCategoryFilter = 'all';
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -234,54 +242,78 @@
                 if (prodError) throw prodError;
                 if (unitError) throw unitError;
 
-                if (!reservations || reservations.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">現在、予約はありません。</td></tr>';
-                    return;
-                }
+                allReservationsData = reservations || [];
+                allResItemsData = resItems || [];
+                allProductsData = products || [];
+                allUnitsData = units || [];
 
-                tbody.innerHTML = '';
-
-                reservations.forEach(res => {
-                    const tr = document.createElement('tr');
-                    
-                    const createdAt = res.created_at ? new Date(res.created_at).toLocaleString('ja-JP') : '不明';
-                    const currentStatus = res.status || '予約中';
-
-                    const myItems = resItems.filter(item => item.reservation_id === res.id);
-                    
-                    const itemsHtml = myItems.map(item => {
-                        const product = products.find(p => p.id === item.product_id);
-                        const productName = product ? product.name : '不明な商品';
-                        
-                        const unit = units.find(u => u.id === item.unit_id);
-                        const unitNumberStr = unit ? `<br><span class="unit-number">個体: ${unit.unit_number}</span>` : '';
-
-                        return `<li>${productName} (${item.quantity}個)${unitNumberStr}</li>`;
-                    }).join('');
-
-                    tr.innerHTML = `
-                        <td style="font-size: 0.9rem; color: #666;">${createdAt}</td>
-                        <td>${res.department}</td>
-                        <td><strong>${res.user_name}</strong></td>
-                        <td><ul class="item-list">${itemsHtml || '<li>商品データなし</li>'}</ul></td>
-                        <td>${res.start_date} <br>〜 ${res.end_date}</td>
-                        <td><a href="mailto:${res.email}" style="font-size: 0.9rem;">${res.email}</a></td>
-                        <td>
-                            <select onchange="updateStatus('${res.id}', this.value)" class="${getStatusClass(currentStatus)}">
-                                <option value="予約中" ${currentStatus === '予約中' ? 'selected' : ''}>予約中</option>
-                                <option value="貸出済" ${currentStatus === '貸出済' ? 'selected' : ''}>貸出済</option>
-                                <option value="返却済" ${currentStatus === '返却済' ? 'selected' : ''}>返却済</option>
-                                <option value="キャンセル" ${currentStatus === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
-                            </select>
-                            <button onclick="deleteReservation('${res.id}')" class="delete-btn">予約を削除</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                renderReservationList();
             } catch (err) {
                 console.error(err);
                 tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
             }
+        }
+
+        function filterReservations(status, btnElement) {
+            currentStatusFilter = status;
+            document.querySelectorAll('#section-reservations .filter-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            renderReservationList();
+        }
+
+        function renderReservationList() {
+            const tbody = document.getElementById('reservation-list');
+
+            const filteredReservations = allReservationsData.filter(res => {
+                const status = res.status || '予約中';
+                if (currentStatusFilter === 'all') return true;
+                return status === currentStatusFilter;
+            });
+
+            if (filteredReservations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">該当する予約はありません。</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            filteredReservations.forEach(res => {
+                const tr = document.createElement('tr');
+                
+                const createdAt = res.created_at ? new Date(res.created_at).toLocaleString('ja-JP') : '不明';
+                const currentStatus = res.status || '予約中';
+
+                const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
+                
+                const itemsHtml = myItems.map(item => {
+                    const product = allProductsData.find(p => p.id === item.product_id);
+                    const productName = product ? product.name : '不明な商品';
+                    
+                    const unit = allUnitsData.find(u => u.id === item.unit_id);
+                    const unitNumberStr = unit ? `<br><span class="unit-number">個体: ${unit.unit_number}</span>` : '';
+
+                    return `<li>${productName} (${item.quantity}個)${unitNumberStr}</li>`;
+                }).join('');
+
+                tr.innerHTML = `
+                    <td style="font-size: 0.9rem; color: #666;">${createdAt}</td>
+                    <td>${res.department}</td>
+                    <td><strong>${res.user_name}</strong></td>
+                    <td><ul class="item-list">${itemsHtml || '<li>商品データなし</li>'}</ul></td>
+                    <td>${res.start_date} <br>〜 ${res.end_date}</td>
+                    <td><a href="mailto:${res.email}" style="font-size: 0.9rem;">${res.email}</a></td>
+                    <td>
+                        <select onchange="updateStatus('${res.id}', this.value)" class="${getStatusClass(currentStatus)}">
+                            <option value="予約中" ${currentStatus === '予約中' ? 'selected' : ''}>予約中</option>
+                            <option value="貸出済" ${currentStatus === '貸出済' ? 'selected' : ''}>貸出済</option>
+                            <option value="返却済" ${currentStatus === '返却済' ? 'selected' : ''}>返却済</option>
+                            <option value="キャンセル" ${currentStatus === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
+                        </select>
+                        <button onclick="deleteReservation('${res.id}')" class="delete-btn">予約を削除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         async function loadProducts() {
@@ -310,7 +342,7 @@
 
         function filterProducts(category, btnElement) {
             currentCategoryFilter = category;
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('#section-products .filter-btn').forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
             renderProductList();
         }
