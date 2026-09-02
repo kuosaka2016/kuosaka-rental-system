@@ -6,7 +6,6 @@
     <meta name="robots" content="noindex, nofollow">
     <title>社内レンタル予約 | 管理画面</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; color: #333; }
         .header { background-color: #333; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
@@ -30,12 +29,6 @@
         .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; margin-bottom: 2rem; }
         .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
         
-        /* QRスキャナー用のスタイル */
-        .scanner-box { background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 0.8rem; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
-        #reader { width: 100%; max-width: 350px; margin: 0 auto; display: none; margin-bottom: 1rem; }
-        .scan-toggle-btn { background-color: #0f766e; color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
-        .scan-toggle-btn:hover { background-color: #115e59; }
-
         /* フィルター用のボタンスタイル */
         .filter-menu { display: flex; gap: 0.5rem; }
         .filter-btn { background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
@@ -88,22 +81,14 @@
     </div>
 
     <div class="main-container">
+        <!-- 切り替えタブボタン -->
         <div class="tab-menu">
             <button class="tab-btn active" onclick="switchTab('reservations', this)">📋 予約一覧・管理</button>
             <button class="tab-btn" onclick="switchTab('products', this)">📦 商品一覧・新規追加</button>
         </div>
 
+        <!-- ① 予約一覧セクション -->
         <div id="section-reservations" class="admin-section active">
-            
-            <div class="card">
-                <h2>📷 QRコードでステータス変更（カメラ読取）</h2>
-                <div class="scanner-box">
-                    <p style="margin-top: 0; font-size: 0.9rem; color: #64748b;">予約IDまたは個体（ユニット）のQRコードを読み取ると、自動でステータスを進行させます。</p>
-                    <button class="scan-toggle-btn" id="scan-toggle-btn" onclick="toggleScanner()">スキャナーを起動する</button>
-                    <div id="reader"></div>
-                </div>
-            </div>
-
             <div class="card">
                 <h2>📋 予約・貸出管理一覧</h2>
                 <table>
@@ -127,6 +112,7 @@
             </div>
         </div>
 
+        <!-- ② 商品一覧・新規追加セクション -->
         <div id="section-products" class="admin-section">
             <div class="card">
                 <h2>➕ 新規レンタル品の追加（画像アップロード対応）</h2>
@@ -151,7 +137,7 @@
                         </div>
                         <div class="form-group">
                             <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
-                            <input type="text" id="unit-numbers" required placeholder="例: T-01, T-02">
+                            <input type="text" id="unit-numbers" required placeholder="例: 商品名_No.1">
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label for="product-image">商品画像ファイル（任意）</label>
@@ -165,6 +151,7 @@
             <div class="card">
                 <h2>
                     📦 登録済み商品一覧（公開・非表示切替対応）
+                    <!-- カテゴリフィルターボタン -->
                     <div class="filter-menu">
                         <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
                         <button class="filter-btn" onclick="filterProducts('スポーツ', this)">スポーツ</button>
@@ -204,9 +191,6 @@
         let allUnitsData = [];
         let currentCategoryFilter = 'all';
 
-        let html5QrCode = null;
-        let isScannerRunning = false;
-
         window.addEventListener('DOMContentLoaded', () => {
             loadReservations();
             loadProducts();
@@ -221,134 +205,10 @@
                 document.getElementById('section-reservations').classList.add('active');
             } else if (tabName === 'products') {
                 document.getElementById('section-products').classList.add('active');
-                if (isScannerRunning) stopScanner(); // 別タブに移動したときはスキャナーを停止
             }
             btnElement.classList.add('active');
         }
 
-        // ==========================================
-        // QRコードスキャナー関連の機能
-        // ==========================================
-        function toggleScanner() {
-            if (!isScannerRunning) {
-                startScanner();
-            } else {
-                stopScanner();
-            }
-        }
-
-        function startScanner() {
-            const readerDiv = document.getElementById('reader');
-            readerDiv.style.display = 'block';
-            document.getElementById('scan-toggle-btn').innerText = 'スキャナーを停止する';
-            document.getElementById('scan-toggle-btn').style.backgroundColor = '#dc2626';
-
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start(
-                { facingMode: "environment" }, // 外側カメラを使用
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                async (decodedText) => {
-                    await handleScannedCode(decodedText.trim());
-                },
-                (errorMessage) => {
-                    // スキャン中のエラーは無視
-                }
-            ).catch(err => {
-                alert("カメラの起動に失敗しました。ブラウザのカメラ権限を確認してください。\n" + err);
-                stopScanner();
-            });
-
-            isScannerRunning = true;
-        }
-
-        function stopScanner() {
-            if (html5QrCode && isScannerRunning) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('reader').style.display = 'none';
-                    document.getElementById('scan-toggle-btn').innerText = 'スキャナーを起動する';
-                    document.getElementById('scan-toggle-btn').style.backgroundColor = '#0f766e';
-                    isScannerRunning = false;
-                }).catch(err => {
-                    console.error("スキャナー停止エラー", err);
-                });
-            }
-        }
-
-        // 読み取ったQRコードから予約を特定してステータスを進める処理
-        async function handleScannedCode(codeText) {
-            // 1. 読み取った文字列が「予約ID」そのものだった場合
-            let { data: resData } = await supabaseClient
-                .from('reservations')
-                .select('*')
-                .eq('id', codeText)
-                .single();
-
-            if (resData) {
-                let nextStatus = '';
-                if (resData.status === '予約中') nextStatus = '貸出中';
-                else if (resData.status === '貸出中') nextStatus = '返却済';
-                else {
-                    alert(`この予約（利用者: ${resData.user_name}）はすでに「${resData.status}」です。`);
-                    return;
-                }
-
-                if (confirm(`【予約検出】\n利用者: ${resData.user_name} (${resData.department})\n現在の状態: ${resData.status}\n\nステータスを「${nextStatus}」に変更しますか？`)) {
-                    await updateStatusDirect(resData.id, nextStatus);
-                }
-                return;
-            }
-
-            // 2. 読み取った文字列が「個体ID (unit_id)」だった場合
-            let { data: itemData } = await supabaseClient
-                .from('reservation_items')
-                .select('reservation_id')
-                .eq('unit_id', codeText);
-
-            if (itemData && itemData.length > 0) {
-                const resIds = itemData.map(i => i.reservation_id);
-                let { data: activeRes } = await supabaseClient
-                    .from('reservations')
-                    .select('*')
-                    .in('id', resIds)
-                    .not('status', 'in', '("キャンセル","返却済")')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (activeRes && activeRes.length > 0) {
-                    const target = activeRes[0];
-                    let nextStatus = target.status === '予約中' ? '貸出中' : '返却済';
-
-                    if (confirm(`【個体検出】\n対象ユニットID: ${codeText.slice(0, 8)}...\n利用者: ${target.user_name}\n\nステータスを「${nextStatus}」に変更しますか？`)) {
-                        await updateStatusDirect(target.id, nextStatus);
-                    }
-                    return;
-                }
-            }
-
-            alert(`読み取ったコード（${codeText}）に一致する有効な予約が見つかりませんでした。`);
-        }
-
-        async function updateStatusDirect(reservationId, newStatus) {
-            try {
-                const { error } = await supabaseClient
-                    .from('reservations')
-                    .update({ status: newStatus })
-                    .eq('id', reservationId);
-
-                if (error) throw error;
-                alert(`ステータスを「${newStatus}」に更新しました！`);
-                loadReservations();
-            } catch (err) {
-                console.error(err);
-                alert("ステータスの更新に失敗しました: " + err.message);
-                loadReservations();
-            }
-        }
-
-
-        // ==========================================
-        // 既存の予約・商品管理機能
-        // ==========================================
         async function loadReservations() {
             const tbody = document.getElementById('reservation-list');
             try {
@@ -455,6 +315,7 @@
             renderProductList();
         }
 
+        // 商品一覧を描画する関数（公開・非表示切替プルダウン付き）
         function renderProductList() {
             const tbody = document.getElementById('product-list');
             
@@ -480,6 +341,7 @@
                 const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
                 const unitNumbersStr = prodUnits.map(u => u.unit_number).join(', ');
 
+                // is_active が true なら公開、false なら非表示
                 const isActive = prod.is_active !== false;
 
                 tr.innerHTML = `
@@ -556,6 +418,7 @@
             }
         }
 
+        // 行ごとの「変更を保存」ボタンの処理（is_activeの更新対応）
         async function saveProduct(productId, currentImageUrl) {
             const newName = document.getElementById(`name-${productId}`).value.trim();
             const newCategory = document.getElementById(`cat-${productId}`).value;
@@ -590,6 +453,7 @@
                     imageUrl = publicUrlData.publicUrl;
                 }
 
+                // 1. products テーブルの更新（is_activeも含む）
                 const { error: prodError } = await supabaseClient
                     .from('products')
                     .update({
@@ -603,6 +467,7 @@
 
                 if (prodError) throw prodError;
 
+                // 2. 個体番号（product_units）の更新
                 const { error: delError } = await supabaseClient
                     .from('product_units')
                     .delete()
@@ -631,6 +496,7 @@
             }
         }
 
+        // 商品の削除処理
         async function deleteProduct(productId) {
             if (!confirm("本当にこの商品を削除しますか？\n紐づく個体データも一緒に削除されます。")) return;
 
@@ -647,6 +513,7 @@
             }
         }
 
+        // 新規アイテム登録 ＆ 画像アップロードの処理
         document.getElementById('add-item-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
