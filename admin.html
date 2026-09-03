@@ -81,15 +81,18 @@
     </div>
 
     <div class="main-container">
+        <!-- 切り替えタブボタン -->
         <div class="tab-menu">
             <button class="tab-btn active" onclick="switchTab('reservations', this)">📋 予約一覧・管理</button>
             <button class="tab-btn" onclick="switchTab('products', this)">📦 商品一覧・新規追加</button>
         </div>
 
+        <!-- ① 予約一覧セクション -->
         <div id="section-reservations" class="admin-section active">
             <div class="card">
                 <h2>
                     📋 予約・貸出管理一覧
+                    <!-- ステータスフィルターボタン -->
                     <div class="filter-menu">
                         <button class="filter-btn active" onclick="filterReservations('all', this)">すべて</button>
                         <button class="filter-btn" onclick="filterReservations('予約中', this)">予約中</button>
@@ -119,6 +122,7 @@
             </div>
         </div>
 
+        <!-- ② 商品一覧・新規追加セクション -->
         <div id="section-products" class="admin-section">
             <div class="card">
                 <h2>➕ 新規レンタル品の追加（画像アップロード対応）</h2>
@@ -135,6 +139,7 @@
                                 <option value="スポーツ">スポーツ</option>
                                 <option value="アウトドア">アウトドア</option>
                                 <option value="トラベル">トラベル</option>
+                                <option value="その他">その他</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -157,11 +162,13 @@
             <div class="card">
                 <h2>
                     📦 登録済み商品一覧（公開・非表示切替対応）
+                    <!-- カテゴリフィルターボタン -->
                     <div class="filter-menu">
                         <button class="filter-btn active" onclick="filterProducts('all', this)">すべて</button>
                         <button class="filter-btn" onclick="filterProducts('スポーツ', this)">スポーツ</button>
                         <button class="filter-btn" onclick="filterProducts('アウトドア', this)">アウトドア</button>
                         <button class="filter-btn" onclick="filterProducts('トラベル', this)">トラベル</button>
+                        <button class="filter-btn" onclick="filterProducts('その他', this)">その他</button>
                     </div>
                 </h2>
                 <table>
@@ -387,6 +394,7 @@
                             <option value="スポーツ" ${prod.category === 'スポーツ' ? 'selected' : ''}>スポーツ</option>
                             <option value="アウトドア" ${prod.category === 'アウトドア' ? 'selected' : ''}>アウトドア</option>
                             <option value="トラベル" ${prod.category === 'トラベル' ? 'selected' : ''}>トラベル</option>
+                            <option value="その他" ${prod.category === 'その他' ? 'selected' : ''}>その他</option>
                         </select>
                     </td>
                     <td><input type="number" id="stock-${prod.id}" value="${prod.total_stock || prodUnits.length}" min="1" class="table-input" style="width: 70px;"></td>
