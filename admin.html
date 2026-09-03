@@ -45,7 +45,7 @@
         .status-henkyaku { background-color: #e0e0e0; }
         
         .item-list { margin: 0; padding-left: 1.2rem; font-size: 0.9rem; }
-        .item-list li { margin-bottom: 0.3rem; }
+        .item-list li { margin-bottom: 0.4rem; }
         .unit-number { color: #206c8c; font-weight: bold; font-size: 0.85rem; background-color: #e6f2f5; padding: 0.1rem 0.4rem; border-radius: 0.3rem; display: inline-block; margin-top: 0.1rem; }
 
         /* テーブル内の入力フィールド（直接編集用） */
@@ -148,7 +148,7 @@
                         </div>
                         <div class="form-group">
                             <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
-                            <input type="text" id="unit-numbers" required placeholder="例: 商品名_No.1">
+                            <input type="text" id="unit-numbers" required placeholder="例: No.1, No.2">
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label for="product-image">商品画像ファイル（任意）</label>
@@ -292,14 +292,34 @@
 
                 const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
                 
-                const itemsHtml = myItems.map(item => {
-                    const product = allProductsData.find(p => p.id === item.product_id);
-                    const productName = product ? product.name : '不明な商品';
+                // 【変更点】同じ商品をグループ化して (x個) と個体番号をまとめる処理
+                const productMap = {};
+                myItems.forEach(item => {
+                    const prodId = item.product_id;
+                    if (!productMap[prodId]) {
+                        productMap[prodId] = {
+                            productId: prodId,
+                            totalQty: 0,
+                            unitNumbers: []
+                        };
+                    }
+                    productMap[prodId].totalQty += item.quantity;
                     
                     const unit = allUnitsData.find(u => u.id === item.unit_id);
-                    const unitNumberStr = unit ? `<br><span class="unit-number">個体: ${unit.unit_number}</span>` : '';
+                    if (unit && unit.unit_number) {
+                        productMap[prodId].unitNumbers.push(unit.unit_number);
+                    }
+                });
 
-                    return `<li>${productName} (${item.quantity}個)${unitNumberStr}</li>`;
+                const itemsHtml = Object.values(productMap).map(group => {
+                    const product = allProductsData.find(p => p.id === group.productId);
+                    const productName = product ? product.name : '不明な商品';
+                    
+                    const unitStr = group.unitNumbers.length > 0 
+                        ? `<br><span class="unit-number">個体: ${group.unitNumbers.join(', ')}</span>` 
+                        : '';
+
+                    return `<li>${productName} (${group.totalQty}個)${unitStr}</li>`;
                 }).join('');
 
                 tr.innerHTML = `
@@ -404,7 +424,7 @@
                             <option value="false" ${!isActive ? 'selected' : ''}>🔴 非表示（修理中等）</option>
                         </select>
                     </td>
-                    <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: T-01, T-02"></td>
+                    <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: No.1, No.2"></td>
                     <td>
                         <div class="action-btns">
                             <button onclick="saveProduct('${prod.id}', '${prod.image_url || ''}')" class="save-btn">変更を保存</button>
