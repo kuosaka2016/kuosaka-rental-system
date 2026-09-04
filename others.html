@@ -14,7 +14,6 @@
         .main-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 1400px; padding: 5rem 2rem 2rem; box-sizing: border-box; }
         h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; text-align: center; }
 
-        /* 期間選択バーのスタイル */
         .date-filter-bar { background-color: #ffffff; padding: 1rem 2rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; gap: 1.5rem; align-items: center; margin-bottom: 3rem; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 800px; box-sizing: border-box; }
         .date-group { display: flex; flex-direction: column; gap: 0.3rem; }
         .date-group label { font-size: 0.85rem; font-weight: bold; color: #555; }
@@ -43,7 +42,6 @@
     <div class="main-container">
         <h1>その他商品一覧</h1>
         
-        <!-- 期間選択バー -->
         <div class="date-filter-bar">
             <div class="date-group">
                 <label for="start-date">レンタル開始日</label>
@@ -66,6 +64,9 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         window.addEventListener('DOMContentLoaded', () => {
+            // カートからの戻るボタン用に現在のページを保存
+            localStorage.setItem('last_category_page', 'others.html');
+
             const today = new Date().toISOString().split('T')[0];
             const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
             
@@ -81,7 +82,6 @@
             loadProducts();
         });
 
-        // 開始日を変更したときの連動処理
         function onStartDateChange() {
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
@@ -101,9 +101,7 @@
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
 
-            if (!startDate || !endDate) {
-                return;
-            }
+            if (!startDate || !endDate) return;
 
             if (startDate > endDate) {
                 alert("終了日は開始日以降の日付に設定してください。");
@@ -124,7 +122,6 @@
 
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
                 
-                // キャンセルおよび「返却済」の予約は、在庫の埋まり具合から除外する（＝在庫が自動解放される）
                 const { data: reservations, error: resError } = await supabaseClient
                     .from('reservations')
                     .select('*')
@@ -142,6 +139,15 @@
                     .filter(item => conflictingResIds.includes(item.reservation_id))
                     .map(item => item.unit_id);
 
+                const bookedQuantityMap = {};
+                resItems.forEach(item => {
+                    if (conflictingResIds.includes(item.reservation_id)) {
+                        if (!item.unit_id) {
+                            bookedQuantityMap[item.product_id] = (bookedQuantityMap[item.product_id] || 0) + item.quantity;
+                        }
+                    }
+                });
+
                 if (!products || products.length === 0) {
                     grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">現在、表示できる商品がありません。</p>';
                     return;
@@ -154,8 +160,19 @@
                     card.className = 'product-card';
 
                     const prodUnits = units.filter(u => u.product_id === product.id);
-                    const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
-                    const availableCount = availableUnits.length;
+                    let availableCount = 0;
+                    let displayTotalStock = 0;
+
+                    if (prodUnits.length > 0) {
+                        const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
+                        availableCount = availableUnits.length;
+                        displayTotalStock = prodUnits.length;
+                    } else {
+                        const totalStock = product.total_stock || 1;
+                        const bookedQty = bookedQuantityMap[product.id] || 0;
+                        availableCount = Math.max(0, totalStock - bookedQty);
+                        displayTotalStock = totalStock;
+                    }
 
                     const imageHtml = product.image_url 
                         ? `<img src="${product.image_url}" alt="${product.name}">` 
@@ -181,7 +198,7 @@
                     card.innerHTML = `
                         <div class="product-image-container">${imageHtml}</div>
                         <h2 class="product-name">${product.name}</h2>
-                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個 (総数: ${prodUnits.length || product.total_stock})</div>
+                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個 (総数: ${displayTotalStock})</div>
                         ${actionHtml}
                     `;
                     grid.appendChild(card);
@@ -219,13 +236,7 @@
             if (existingItem) {
                 existingItem.quantity += quantity;
             } else {
-                cart.push({ 
-                    id: productId, 
-                    name: productName, 
-                    quantity: quantity, 
-                    startDate: startDate, 
-                    endDate: endDate 
-                });
+                cart.push({ id: productId, name: productName, quantity: quantity, startDate: startDate, endDate: endDate });
             }
 
             localStorage.setItem('rental_cart', JSON.stringify(cart));
