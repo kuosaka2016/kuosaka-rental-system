@@ -43,7 +43,6 @@
     <div class="main-container">
         <h1>トラベル商品一覧</h1>
         
-        <!-- 期間選択バー -->
         <div class="date-filter-bar">
             <div class="date-group">
                 <label for="start-date">レンタル開始日</label>
@@ -81,7 +80,6 @@
             loadProducts();
         });
 
-        // 開始日を変更したときの連動処理
         function onStartDateChange() {
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
@@ -124,7 +122,6 @@
 
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
                 
-                // キャンセルおよび「返却済」の予約は、在庫の埋まり具合から除外する（＝在庫が自動解放される）
                 const { data: reservations, error: resError } = await supabaseClient
                     .from('reservations')
                     .select('*')
@@ -134,13 +131,25 @@
 
                 if (unitError || resError || itemsError) throw (unitError || resError || itemsError);
 
+                // 期間が重複する予約IDを抽出
                 const conflictingResIds = reservations.filter(res => {
                     return !(res.end_date < startDate || res.start_date > endDate);
                 }).map(res => res.id);
 
+                // 予約済みの個体IDリスト
                 const bookedUnitIds = resItems
                     .filter(item => conflictingResIds.includes(item.reservation_id))
                     .map(item => item.unit_id);
+
+                // 予約済みの数量プール合計（個体IDが紐づかない数量管理用）
+                const bookedQuantityMap = {};
+                resItems.forEach(item => {
+                    if (conflictingResIds.includes(item.reservation_id)) {
+                        if (!item.unit_id) { // unit_idがない＝数量管理の商品
+                            bookedQuantityMap[item.product_id] = (bookedQuantityMap[item.product_id] || 0) + item.quantity;
+                        }
+                    }
+                });
 
                 if (!products || products.length === 0) {
                     grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">現在、表示できる商品がありません。</p>';
@@ -154,8 +163,21 @@
                     card.className = 'product-card';
 
                     const prodUnits = units.filter(u => u.product_id === product.id);
-                    const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
-                    const availableCount = availableUnits.length;
+                    let availableCount = 0;
+                    let displayTotalStock = 0;
+
+                    if (prodUnits.length > 0) {
+                        // 【パターンA】個体管理する商品の場合
+                        const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
+                        availableCount = availableUnits.length;
+                        displayTotalStock = prodUnits.length;
+                    } else {
+                        // 【パターンB】数量管理する商品の場合
+                        const totalStock = product.total_stock || 1;
+                        const bookedQty = bookedQuantityMap[product.id] || 0;
+                        availableCount = Math.max(0, totalStock - bookedQty);
+                        displayTotalStock = totalStock;
+                    }
 
                     const imageHtml = product.image_url 
                         ? `<img src="${product.image_url}" alt="${product.name}">` 
@@ -181,7 +203,7 @@
                     card.innerHTML = `
                         <div class="product-image-container">${imageHtml}</div>
                         <h2 class="product-name">${product.name}</h2>
-                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個 (総数: ${prodUnits.length || product.total_stock})</div>
+                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個 (総数: ${displayTotalStock})</div>
                         ${actionHtml}
                     `;
                     grid.appendChild(card);
