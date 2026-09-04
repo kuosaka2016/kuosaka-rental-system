@@ -42,16 +42,14 @@
     </style>
 </head>
 <body>
-    <a href="travel.html" class="back-button">&larr; 商品一覧に戻る</a>
+    <a href="travel.html" id="back-to-list-btn" class="back-button">&larr; 商品一覧に戻る</a>
 
     <div class="main-container">
         <h1>🛒 カート確認・予約手続き</h1>
         
-        <!-- カート内商品カード -->
         <div class="card">
             <div class="card-header">
                 <h2>選択中の商品</h2>
-                <!-- カートを空にするボタン -->
                 <button class="clear-cart-btn" id="clear-cart-btn" onclick="clearCart()" style="display: none;">カートを空にする</button>
             </div>
             <div id="cart-items-container">
@@ -59,7 +57,6 @@
             </div>
         </div>
 
-        <!-- 予約者情報フォーム -->
         <div class="card" id="checkout-card" style="display: none;">
             <h2 style="margin-top:0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f7f9fa; padding-bottom: 0.5rem; margin-bottom: 1rem;">予約者情報の入力</h2>
             <form id="checkout-form">
@@ -70,7 +67,7 @@
                     </div>
                     <div class="form-group">
                         <label for="user-name">氏名</label>
-                        <input type="user-name" id="user-name" required placeholder="例: 山田 太郎">
+                        <input type="text" id="user-name" required placeholder="例: 山田 太郎">
                     </div>
                     <div class="form-group">
                         <label for="email">メールアドレス</label>
@@ -88,6 +85,13 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         window.addEventListener('DOMContentLoaded', () => {
+            // 直前に見ていたカテゴリページに戻るためのリンク動的変更
+            const lastPage = localStorage.getItem('last_category_page');
+            const backBtn = document.getElementById('back-to-list-btn');
+            if (lastPage && backBtn) {
+                backBtn.href = lastPage;
+            }
+
             renderCart();
         });
 
@@ -95,17 +99,18 @@
             const container = document.getElementById('cart-items-container');
             const checkoutCard = document.getElementById('checkout-card');
             const clearBtn = document.getElementById('clear-cart-btn');
+            const lastPage = localStorage.getItem('last_category_page') || 'travel.html';
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
 
             if (cart.length === 0) {
-                container.innerHTML = '<p class="empty-cart">カートに商品がありません。<br><a href="travel.html" style="color: #206c8c; font-weight: bold;">商品一覧へ戻る</a></p>';
+                container.innerHTML = `<p class="empty-cart">カートに商品がありません。<br><a href="${lastPage}" style="color: #206c8c; font-weight: bold;">商品一覧へ戻る</a></p>`;
                 checkoutCard.style.display = 'none';
-                clearBtn.style.display = 'none'; // カートが空ならボタンを隠す
+                clearBtn.style.display = 'none';
                 return;
             }
 
             checkoutCard.style.display = 'block';
-            clearBtn.style.display = 'inline-block'; // 商品があればボタンを表示
+            clearBtn.style.display = 'inline-block';
             container.innerHTML = '';
 
             cart.forEach((item, index) => {
@@ -138,7 +143,7 @@
             renderCart();
         }
 
-        // 予約確定処理
+        // 予約確定処理（ハイブリッド対応版）
         document.getElementById('checkout-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -154,6 +159,7 @@
 
             const startDate = cart[0].startDate;
             const endDate = cart[0].endDate;
+            const lastPage = localStorage.getItem('last_category_page') || 'travel.html';
 
             const submitBtn = document.getElementById('submit-order-btn');
             submitBtn.disabled = true;
@@ -177,12 +183,12 @@
                 if (resError) throw resError;
                 const reservationId = resData.id;
 
-                // 2. 各商品について空いている個体（unit_id）を自動割り当てして reservation_items に登録
+                // 2. データの取得（個体情報、既存予約）
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
-                const { data: existingRes, error: exResError } = await supabaseClient.from('reservations').select('*').neq('status', 'キャンセル');
+                const { data: existingRes, error: exResError } = await supabaseClient.from('reservations').select('*').not('status', 'in', '("キャンセル","返却済")');
                 const { data: existingItems, error: exItemsError } = await supabaseClient.from('reservation_items').select('*');
 
-                if (unitError || exResError || exItemsError) throw (unitError || exResError || exItemsError);
+                if (unitError || exResError || exItemsError) throw (unitError || exResError || itemsError);
 
                 const conflictingResIds = existingRes.filter(res => {
                     return !(res.end_date < startDate || res.start_date > endDate);
@@ -192,24 +198,60 @@
                     .filter(item => conflictingResIds.includes(item.reservation_id))
                     .map(item => item.unit_id);
 
+                // 数量管理用の予約済み数量集計
+                const bookedQuantityMap = {};
+                existingItems.forEach(item => {
+                    if (conflictingResIds.includes(item.reservation_id)) {
+                        if (!item.unit_id) {
+                            bookedQuantityMap[item.product_id] = (bookedQuantityMap[item.product_id] || 0) + item.quantity;
+                        }
+                    }
+                });
+
                 let reservationItemsToInsert = [];
 
                 for (let item of cart) {
-                    const availableUnits = units.filter(u => u.product_id === item.id && !bookedUnitIds.includes(u.id));
+                    const prodUnits = units.filter(u => u.product_id === item.id);
 
-                    if (availableUnits.length < item.quantity) {
-                        throw new Error(`「${item.name}」の在庫が足りなくなりました。再度商品一覧から空き状況をご確認ください。`);
-                    }
+                    if (prodUnits.length > 0) {
+                        // 【パターンA：個体管理品】空いている個体を割り当て
+                        const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
 
-                    for (let i = 0; i < item.quantity; i++) {
-                        const targetUnit = availableUnits[i];
-                        bookedUnitIds.push(targetUnit.id);
+                        if (availableUnits.length < item.quantity) {
+                            throw new Error(`「${item.name}」の在庫が足りなくなりました。再度商品一覧から空き状況をご確認ください。`);
+                        }
+
+                        for (let i = 0; i < item.quantity; i++) {
+                            const targetUnit = availableUnits[i];
+                            bookedUnitIds.push(targetUnit.id);
+
+                            reservationItemsToInsert.push({
+                                reservation_id: reservationId,
+                                product_id: item.id,
+                                unit_id: targetUnit.id,
+                                quantity: 1
+                            });
+                        }
+                    } else {
+                        // 【パターンB：数量管理品（グローブなど）】個体IDなしで数量だけ登録
+                        // ※productsテーブルの総在庫数チェック
+                        const { data: prodData } = await supabaseClient.from('products').select('total_stock').eq('id', item.id).single();
+                        const totalStock = prodData ? (prodData.total_stock || 1) : 1;
+                        const bookedQty = bookedQuantityMap[item.id] || 0;
+                        const availableStock = Math.max(0, totalStock - bookedQty);
+
+                        if (availableStock < item.quantity) {
+                            throw new Error(`「${item.name}」の在庫が足りなくなりました。再読込して空き状況をご確認ください。`);
+                        }
+
+                        // 予約済み数量マップを今回の注文分で更新（ループ内の重複防止）
+                        bookedQuantityMap[item.id] = bookedQty + item.quantity;
 
                         reservationItemsToInsert.push({
                             reservation_id: reservationId,
                             product_id: item.id,
-                            unit_id: targetUnit.id,
-                            quantity: 1
+                            unit_id: null,
+                            quantity: item.quantity
                         });
                     }
                 }
@@ -223,7 +265,7 @@
                 localStorage.removeItem('rental_cart');
 
                 alert("予約が完了しました！ご登録ありがとうございます。");
-                window.location.href = "travel.html";
+                window.location.href = lastPage;
 
             } catch (err) {
                 console.error(err);
