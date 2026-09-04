@@ -59,10 +59,6 @@
         .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         .delete-btn:hover { background-color: #ffcdd2; }
 
-        /* ステータスバッジ */
-        .badge-active { background-color: #d1fae5; color: #065f46; padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; }
-        .badge-inactive { background-color: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; }
-
         /* 登録フォーム用のスタイル */
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
         .form-group label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.3rem; color: #555; }
@@ -147,8 +143,8 @@
                             <input type="number" id="total-stock" required min="1" value="1">
                         </div>
                         <div class="form-group">
-                            <label for="unit-numbers">個体番号（カンマ区切りで総在庫数分）</label>
-                            <input type="text" id="unit-numbers" required placeholder="例: No.1, No.2">
+                            <label for="unit-numbers">個体番号（カンマ区切り ※数量管理の場合は空欄でOK）</label>
+                            <input type="text" id="unit-numbers" placeholder="例: No.1, No.2 (数量管理なら空欄)">
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label for="product-image">商品画像ファイル（任意）</label>
@@ -292,7 +288,6 @@
 
                 const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
                 
-                // 【変更点】同じ商品をグループ化して (x個) と個体番号をまとめる処理
                 const productMap = {};
                 myItems.forEach(item => {
                     const prodId = item.product_id;
@@ -305,9 +300,11 @@
                     }
                     productMap[prodId].totalQty += item.quantity;
                     
-                    const unit = allUnitsData.find(u => u.id === item.unit_id);
-                    if (unit && unit.unit_number) {
-                        productMap[prodId].unitNumbers.push(unit.unit_number);
+                    if (item.unit_id) {
+                        const unit = allUnitsData.find(u => u.id === item.unit_id);
+                        if (unit && unit.unit_number) {
+                            productMap[prodId].unitNumbers.push(unit.unit_number);
+                        }
                     }
                 });
 
@@ -374,7 +371,6 @@
             renderProductList();
         }
 
-        // 商品一覧を描画する関数（公開・非表示切替プルダウン付き）
         function renderProductList() {
             const tbody = document.getElementById('product-list');
             
@@ -400,7 +396,6 @@
                 const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
                 const unitNumbersStr = prodUnits.map(u => u.unit_number).join(', ');
 
-                // is_active が true なら公開、false なら非表示
                 const isActive = prod.is_active !== false;
 
                 tr.innerHTML = `
@@ -478,7 +473,7 @@
             }
         }
 
-        // 行ごとの「変更を保存」ボタンの処理（is_activeの更新対応）
+        // 行ごとの「変更を保存」ボタンの処理（個体番号空欄＝数量管理への切り替え対応）
         async function saveProduct(productId, currentImageUrl) {
             const newName = document.getElementById(`name-${productId}`).value.trim();
             const newCategory = document.getElementById(`cat-${productId}`).value;
@@ -488,8 +483,8 @@
             const imageFileInput = document.getElementById(`image-file-${productId}`);
             const newImageFile = imageFileInput.files[0];
 
-            if (!newName || !newCategory || isNaN(newStock) || !newUnitsInput) {
-                alert("すべての項目を正しく入力してください。");
+            if (!newName || !newCategory || isNaN(newStock)) {
+                alert("必須項目を正しく入力してください。");
                 return;
             }
 
@@ -513,7 +508,7 @@
                     imageUrl = publicUrlData.publicUrl;
                 }
 
-                // 1. products テーブルの更新（is_activeも含む）
+                // 1. products テーブルの更新
                 const { error: prodError } = await supabaseClient
                     .from('products')
                     .update({
@@ -527,7 +522,7 @@
 
                 if (prodError) throw prodError;
 
-                // 2. 個体番号（product_units）の更新
+                // 2. 個体番号（product_units）の更新（空欄の場合は全削除して数量管理に移行）
                 const { error: delError } = await supabaseClient
                     .from('product_units')
                     .delete()
@@ -535,17 +530,21 @@
 
                 if (delError) throw delError;
 
-                const unitNumbers = newUnitsInput.split(',').map(u => u.trim()).filter(u => u !== '');
-                const unitRows = unitNumbers.map(uNum => ({
-                    product_id: productId,
-                    unit_number: uNum
-                }));
+                if (newUnitsInput !== '') {
+                    const unitNumbers = newUnitsInput.split(',').map(u => u.trim()).filter(u => u !== '');
+                    if (unitNumbers.length > 0) {
+                        const unitRows = unitNumbers.map(uNum => ({
+                            product_id: productId,
+                            unit_number: uNum
+                        }));
 
-                const { error: unitError } = await supabaseClient
-                    .from('product_units')
-                    .insert(unitRows);
+                        const { error: unitError } = await supabaseClient
+                            .from('product_units')
+                            .insert(unitRows);
 
-                if (unitError) throw unitError;
+                        if (unitError) throw unitError;
+                    }
+                }
 
                 alert("商品情報を更新しました！");
                 loadProducts(); 
@@ -556,7 +555,6 @@
             }
         }
 
-        // 商品の削除処理
         async function deleteProduct(productId) {
             if (!confirm("本当にこの商品を削除しますか？\n紐づく個体データも一緒に削除されます。")) return;
 
@@ -573,7 +571,7 @@
             }
         }
 
-        // 新規アイテム登録 ＆ 画像アップロードの処理
+        // 新規アイテム登録（個体番号の空欄＝数量管理対応）
         document.getElementById('add-item-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -583,8 +581,8 @@
             const unitInput = document.getElementById('unit-numbers').value.trim();
             const imageFile = document.getElementById('product-image').files[0];
 
-            if (!name || !category || isNaN(totalStock) || !unitInput) {
-                alert("すべての必須項目を正しく入力・選択してください。");
+            if (!name || !category || isNaN(totalStock)) {
+                alert("必須項目を正しく入力・選択してください。");
                 return;
             }
 
@@ -615,11 +613,15 @@
 
                 if (prodError) throw prodError;
 
-                const unitNumbers = unitInput.split(',').map(u => u.trim()).filter(u => u !== '');
-                const unitRows = unitNumbers.map(uNum => ({ product_id: insertedProduct.id, unit_number: uNum }));
-
-                const { error: unitError } = await supabaseClient.from('product_units').insert(unitRows);
-                if (unitError) throw unitError;
+                // 個体番号が入力されている場合のみ product_units に登録
+                if (unitInput !== '') {
+                    const unitNumbers = unitInput.split(',').map(u => u.trim()).filter(u => u !== '');
+                    if (unitNumbers.length > 0) {
+                        const unitRows = unitNumbers.map(uNum => ({ product_id: insertedProduct.id, unit_number: uNum }));
+                        const { error: unitError } = await supabaseClient.from('product_units').insert(unitRows);
+                        if (unitError) throw unitError;
+                    }
+                }
 
                 alert(`新しいアイテム「${name}」を登録しました！`);
                 document.getElementById('add-item-form').reset();
