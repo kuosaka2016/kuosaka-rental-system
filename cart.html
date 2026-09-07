@@ -140,10 +140,9 @@
         }
 
         function clearCart() {
-            if (confirm("カート内の商品をすべて削除しますか？")) {
-                localStorage.removeItem('rental_cart');
-                renderCart();
-            }
+            // 確認のポップアップ(confirm)を削除し、即座に空にする処理
+            localStorage.removeItem('rental_cart');
+            renderCart();
         }
 
         document.getElementById('reservation-form').addEventListener('submit', async (e) => {
