@@ -6,13 +6,13 @@
     <title>ユニオンレンタル品予約 | トップ</title>
     <meta name="robots" content="noindex, nofollow">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; justify-content: center; }
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; justify-content: space-between; }
 
         /* 右上に配置するカートボタン */
         .cart-icon { position: fixed; top: 1rem; right: 1rem; background-color: #333; color: white; padding: 0.5rem 1.5rem; border-radius: 1.5rem; font-weight: bold; z-index: 100; cursor: pointer; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: inline-flex; align-items: center; gap: 0.4rem; }
         .cart-icon:hover { background-color: #555; }
 
-        .main-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 2rem; box-sizing: border-box; text-align: center; }
+        .main-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 4rem 2rem 2rem; box-sizing: border-box; text-align: center; margin: auto; }
         h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color: #206c8c; }
         p.subtitle { color: #666; margin-bottom: 2.5rem; font-size: 1.1rem; }
 
@@ -29,6 +29,12 @@
         .footer-nav { display: flex; gap: 1rem; justify-content: center; align-items: center; flex-wrap: wrap; width: 100%; margin-top: 0.5rem; }
         .sub-link { background-color: #e2e8f0; color: #475569; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s, color 0.2s; display: inline-block; }
         .sub-link:hover { background-color: #cbd5e1; color: #1e293b; }
+
+        /* フッター・ロゴエリア */
+        .site-footer { width: 100%; padding: 2rem 0; display: flex; justify-content: center; align-items: center; }
+        .footer-logo-link { display: inline-block; opacity: 0.8; transition: opacity 0.2s; text-decoration: none; }
+        .footer-logo-link:hover { opacity: 1; }
+        .footer-logo { height: 35px; width: auto; object-fit: contain; }
 
         /* --- ポップアップ（モーダル）のスタイル --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; box-sizing: border-box; }
@@ -50,16 +56,19 @@
     </style>
 </head>
 <body>
+    <!-- 右上に配置したカートを見るボタン -->
     <a href="cart.html" class="cart-icon" id="cart-nav-btn">🛒 カートを見る</a>
 
     <div class="main-container">
         <h1>ユニオンレンタル品予約</h1>
         <p class="subtitle">利用したい商品のカテゴリを選択してください</p>
 
+        <!-- 注意事項ポップアップを開くボタン -->
         <button class="notice-trigger-btn" onclick="openModal()">
             ⚠️ ご利用前の注意事項（必ずお読みください）
         </button>
 
+        <!-- カテゴリ一覧 -->
         <div class="category-grid">
             <a href="travel.html" class="category-card">トラベル</a>
             <a href="sports.html" class="category-card">スポーツ</a>
@@ -67,12 +76,20 @@
             <a href="others.html" class="category-card">その他</a>
         </div>
 
+        <!-- 画面中央下のボタン群 -->
         <div class="footer-nav">
             <a href="my-reservations.html" class="sub-link">🔍 自分の予約を確認・キャンセル</a>
-            <a href="admin.html" class="sub-link" onclick="goToAdmin(event)">管理者画面へ</a>
         </div>
     </div>
 
+    <!-- フッター（ロゴから管理者画面へ遷移） -->
+    <footer class="site-footer">
+        <a href="admin.html" class="footer-logo-link" onclick="goToAdmin(event)" title="管理者画面へ">
+            <img src="コマツユニオン.gif" alt="ユニオンロゴ" class="footer-logo">
+        </a>
+    </footer>
+
+    <!-- 注意事項ポップアップ（モーダル） -->
     <div class="modal-overlay" id="notice-modal">
         <div class="modal-content">
             <h2>⚠️ ご利用上の注意事項</h2>
@@ -106,7 +123,7 @@
             document.getElementById('notice-modal').classList.remove('active');
         }
 
-        // モーダルの外側をクリックしても閉じるようにする場合
+        // モーダルの外側をクリックしても閉じる
         document.getElementById('notice-modal').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
                 closeModal();
