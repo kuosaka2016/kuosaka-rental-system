@@ -14,7 +14,12 @@
 
         .cart-card { background-color: white; border-radius: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); width: 100%; padding: 2rem; box-sizing: border-box; margin-bottom: 2rem; }
         
-        .cart-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        .cart-header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem; }
+        .cart-header-area h2 { font-size: 1.2rem; color: #206c8c; margin: 0; }
+        .clear-cart-btn { background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .clear-cart-btn:hover { background-color: #e2e8f0; color: #1e293b; }
+
+        .cart-table { width: 100%; border-collapse: collapse; margin-bottom: 0.5rem; }
         .cart-table th, .cart-table td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
         .cart-table th { color: #206c8c; font-weight: bold; }
         
@@ -33,6 +38,7 @@
         .submit-reservation-btn:disabled { background-color: #ccc; color: #666; cursor: not-allowed; }
 
         .empty-cart { text-align: center; padding: 3rem 0; color: #666; font-size: 1.1rem; }
+        .home-btn { background-color: #206c8c; color: white; text-decoration: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-weight: bold; display: inline-block; }
     </style>
 </head>
 <body>
@@ -85,7 +91,7 @@
                 cartArea.innerHTML = `
                     <div class="empty-cart">
                         <p>カートに商品は入っていません。</p>
-                        <a href="index.html" class="home-btn" style="margin-top: 1rem; display: inline-block; text-decoration: none;">トップページへ戻る</a>
+                        <a href="index.html" class="home-btn" style="margin-top: 1rem;">トップページへ戻る</a>
                     </div>
                 `;
                 formArea.style.display = 'none';
@@ -95,6 +101,10 @@
             formArea.style.display = 'block';
 
             let html = `
+                <div class="cart-header-area">
+                    <h2>選択中の商品</h2>
+                    <button class="clear-cart-btn" onclick="clearCart()">カートを空にする</button>
+                </div>
                 <table class="cart-table">
                     <thead>
                         <tr>
@@ -127,6 +137,13 @@
             cart.splice(index, 1);
             localStorage.setItem('rental_cart', JSON.stringify(cart));
             renderCart();
+        }
+
+        function clearCart() {
+            if (confirm("カート内の商品をすべて削除しますか？")) {
+                localStorage.removeItem('rental_cart');
+                renderCart();
+            }
         }
 
         document.getElementById('reservation-form').addEventListener('submit', async (e) => {
@@ -214,7 +231,6 @@
                     }
                 }
 
-                // 完了画面へ引き継ぐデータを保存
                 const reservationDetail = {
                     userName,
                     department,
@@ -222,11 +238,8 @@
                     items: cart
                 };
                 localStorage.setItem('last_reservation_detail', JSON.stringify(reservationDetail));
-
-                // カートを空にする
                 localStorage.removeItem('rental_cart');
 
-                // アラートを出さずに、そのまま complete.html へ強制的に画面遷移させる
                 window.location.href = "complete.html";
 
             } catch (err) {
