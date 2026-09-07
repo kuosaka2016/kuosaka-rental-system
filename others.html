@@ -9,7 +9,7 @@
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; }
         .back-button { position: fixed; top: 1rem; left: 1rem; background-color: #ffffff; color: #333; text-decoration: none; padding: 0.5rem 1rem; border-radius: 1.5rem; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100; }
-        .cart-icon { position: fixed; top: 1rem; right: 1rem; background-color: #333; color: white; padding: 0.5rem 1.5rem; border-radius: 1.5rem; font-weight: bold; z-index: 100; cursor: pointer; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .cart-icon { position: fixed; top: 1rem; right: 1rem; background-color: #333; color: white; padding: 0.5rem 1.5rem; border-radius: 1.5rem; font-weight: bold; z-index: 100; cursor: pointer; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: inline-flex; align-items: center; gap: 0.4rem; }
         .cart-icon:hover { background-color: #555; }
         .main-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 1400px; padding: 5rem 2rem 2rem; box-sizing: border-box; }
         h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; text-align: center; }
@@ -37,7 +37,7 @@
 </head>
 <body>
     <a href="index.html" class="back-button">&larr; 戻る</a>
-    <a href="cart.html" class="cart-icon">カートを見る</a>
+    <a href="cart.html" class="cart-icon" id="cart-nav-btn">🛒 カートを見る</a>
 
     <div class="main-container">
         <h1>その他商品一覧</h1>
@@ -64,8 +64,13 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         window.addEventListener('DOMContentLoaded', () => {
-            // カートからの戻るボタン用に現在のページを保存
             localStorage.setItem('last_category_page', 'others.html');
+
+            const cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
+            const cartBtn = document.getElementById('cart-nav-btn');
+            if (cart.length > 0) {
+                cartBtn.innerHTML = `🛒 カート <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.4rem; border-radius: 1rem; font-size: 0.8rem;">${cart.length}</span>`;
+            }
 
             const today = new Date().toISOString().split('T')[0];
             const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -75,7 +80,6 @@
 
             startDateInput.value = today;
             startDateInput.min = today;
-
             endDateInput.value = tomorrow;
             endDateInput.min = today;
 
@@ -85,14 +89,12 @@
         function onStartDateChange() {
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
-            
             const startDate = startDateInput.value;
             endDateInput.min = startDate;
 
             if (endDateInput.value < startDate) {
                 endDateInput.value = startDate;
             }
-
             loadProducts();
         }
 
@@ -111,22 +113,11 @@
             try {
                 grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">空き状況を確認しています...</p>';
 
-                const { data: products, error: prodError } = await supabaseClient
-                    .from('products')
-                    .select('*')
-                    .eq('is_active', true)
-                    .eq('category', 'その他')
-                    .order('name', { ascending: true });
-
+                const { data: products, error: prodError } = await supabaseClient.from('products').select('*').eq('is_active', true).eq('category', 'その他').order('name', { ascending: true });
                 if (prodError) throw prodError;
 
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
-                
-                const { data: reservations, error: resError } = await supabaseClient
-                    .from('reservations')
-                    .select('*')
-                    .not('status', 'in', '("キャンセル","返却済")');
-
+                const { data: reservations, error: resError } = await supabaseClient.from('reservations').select('*').not('status', 'in', '("キャンセル","返却済")');
                 const { data: resItems, error: itemsError } = await supabaseClient.from('reservation_items').select('*');
 
                 if (unitError || resError || itemsError) throw (unitError || resError || itemsError);
@@ -135,9 +126,7 @@
                     return !(res.end_date < startDate || res.start_date > endDate);
                 }).map(res => res.id);
 
-                const bookedUnitIds = resItems
-                    .filter(item => conflictingResIds.includes(item.reservation_id))
-                    .map(item => item.unit_id);
+                const bookedUnitIds = resItems.filter(item => conflictingResIds.includes(item.reservation_id)).map(item => item.unit_id);
 
                 const bookedQuantityMap = {};
                 resItems.forEach(item => {
@@ -154,29 +143,23 @@
                 }
 
                 grid.innerHTML = '';
-
                 products.forEach(product => {
                     const card = document.createElement('div');
                     card.className = 'product-card';
 
                     const prodUnits = units.filter(u => u.product_id === product.id);
                     let availableCount = 0;
-                    let displayTotalStock = 0;
 
                     if (prodUnits.length > 0) {
                         const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
                         availableCount = availableUnits.length;
-                        displayTotalStock = prodUnits.length;
                     } else {
                         const totalStock = product.total_stock || 1;
                         const bookedQty = bookedQuantityMap[product.id] || 0;
                         availableCount = Math.max(0, totalStock - bookedQty);
-                        displayTotalStock = totalStock;
                     }
 
-                    const imageHtml = product.image_url 
-                        ? `<img src="${product.image_url}" alt="${product.name}">` 
-                        : '<span>写真</span>';
+                    const imageHtml = product.image_url ? `<img src="${product.image_url}" alt="${product.name}">` : '<span>写真</span>';
 
                     let actionHtml = '';
                     if (availableCount > 0) {
@@ -198,7 +181,8 @@
                     card.innerHTML = `
                         <div class="product-image-container">${imageHtml}</div>
                         <h2 class="product-name">${product.name}</h2>
-                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個</div> 
+                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個</div>
+                        ${actionHtml}
                     `;
                     grid.appendChild(card);
                 });
@@ -228,7 +212,6 @@
 
             const cardElement = btnElement.parentElement;
             const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
-            
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
             let existingItem = cart.find(item => item.id === productId && item.startDate === startDate && item.endDate === endDate);
 
@@ -239,6 +222,10 @@
             }
 
             localStorage.setItem('rental_cart', JSON.stringify(cart));
+            
+            const cartBtn = document.getElementById('cart-nav-btn');
+            cartBtn.innerHTML = `🛒 カート <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.4rem; border-radius: 1rem; font-size: 0.8rem;">${cart.length}</span>`;
+
             alert(`${productName}（${startDate} 〜 ${endDate}）を ${quantity}個 カートに追加しました！`);
         }
     </script>
