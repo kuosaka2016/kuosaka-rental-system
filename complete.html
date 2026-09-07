@@ -14,12 +14,14 @@
         p.subtitle { color: #666; margin-bottom: 2rem; font-size: 1rem; }
 
         .info-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; text-align: left; margin-bottom: 1.5rem; }
-        .info-row { display: flex; margin-bottom: 0.8rem; font-size: 0.95rem; }
+        .info-row { display: flex; margin-bottom: 0.8rem; font-size: 0.95rem; align-items: center; }
         .info-row:last-child { margin-bottom: 0; }
         .info-label { font-weight: bold; width: 110px; color: #555; flex-shrink: 0; }
         .info-value { color: #333; word-break: break-all; }
+        .info-value a { color: #206c8c; text-decoration: none; font-weight: bold; }
+        .info-value a:hover { text-decoration: underline; }
 
-        h2.section-title { font-size: 1.1rem; color: #206c8c; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.4rem; margin-top: 0; margin-bottom: 1rem; text-align: left; }
+        h2.section-title { font-size: 1.1rem; color: #206c8c; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.4rem; margin-top: 0; margin-bottom: 1.0rem; text-align: left; }
         
         .item-list { list-style: none; padding: 0; margin: 0; text-align: left; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.95rem; gap: 1rem; }
@@ -28,7 +30,11 @@
         .item-period { font-size: 0.85rem; color: #666; display: block; margin-top: 0.2rem; }
         .item-qty { font-weight: bold; color: #206c8c; background-color: #e6f2f5; padding: 0.2rem 0.6rem; border-radius: 0.5rem; flex-shrink: 0; }
 
-        .home-btn { background-color: #206c8c; color: white; text-decoration: none; padding: 0.8rem 2.5rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: inline-block; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 1rem; }
+        .btn-group { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem; }
+        .action-btn { text-decoration: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: inline-block; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .mail-btn { background-color: #0284c7; color: white; }
+        .mail-btn:hover { background-color: #0369a1; }
+        .home-btn { background-color: #206c8c; color: white; }
         .home-btn:hover { background-color: #174d63; }
     </style>
 </head>
@@ -50,7 +56,7 @@
             </div>
             <div class="info-row">
                 <span class="info-label">メール:</span>
-                <span class="info-value" id="res-email">-</span>
+                <span class="info-value" id="res-email"><a href="#" id="email-link">-</a></span>
             </div>
         </div>
 
@@ -61,12 +67,14 @@
             </ul>
         </div>
 
-        <a href="index.html" class="home-btn">トップページに戻る</a>
+        <div class="btn-group">
+            <a href="#" id="send-mail-action-btn" class="action-btn mail-btn">📧 予約内容をメールで送る（控え）</a>
+            <a href="index.html" class="action-btn home-btn">トップページに戻る</a>
+        </div>
     </div>
 
     <script>
         window.addEventListener('DOMContentLoaded', () => {
-            // カート画面の予約処理から渡された直前の予約詳細データを取得
             const lastReservation = JSON.parse(localStorage.getItem('last_reservation_detail'));
 
             if (!lastReservation) {
@@ -75,15 +83,20 @@
                 return;
             }
 
-            // 申込者情報を画面に反映
+            // 申込者情報反映
             document.getElementById('res-name').innerText = lastReservation.userName;
             document.getElementById('res-dept').innerText = lastReservation.department;
-            document.getElementById('res-email').innerText = lastReservation.email;
+            
+            const emailVal = lastReservation.email;
+            const emailLink = document.getElementById('email-link');
+            emailLink.innerText = emailVal;
+            emailLink.href = `mailto:${emailVal}`;
 
-            // 予約商品一覧を画面に反映
+            // 商品一覧反映
             const itemListEl = document.getElementById('res-item-list');
             itemListEl.innerHTML = '';
 
+            let itemsTextSummary = "";
             lastReservation.items.forEach(item => {
                 const li = document.createElement('li');
                 li.className = 'item-row';
@@ -95,7 +108,27 @@
                     <span class="item-qty">${item.quantity} 個</span>
                 `;
                 itemListEl.appendChild(li);
+
+                itemsTextSummary += `- ${item.name} (${item.quantity}個) / 期間: ${item.startDate} 〜 ${item.endDate}\n`;
             });
+
+            // メールの件名と本文を自動生成して mailto リンクを組み立てる
+            const mailSubject = encodeURIComponent("【社内レンタル予約完了の控え】");
+            const mailBody = encodeURIComponent(
+                `以下の内容で社内レンタルの予約を受け付けました。\n\n` +
+                `【申込者情報】\n` +
+                `氏名: ${lastReservation.userName}\n` +
+                `所属部署: ${lastReservation.department}\n` +
+                `メール: ${emailVal}\n\n` +
+                `【予約商品】\n` +
+                `${itemsTextSummary}\n` +
+                `----------------------------------------\n` +
+                `社内レンタル予約システム`
+            );
+
+            // 宛先は本人のメールアドレス（必要に応じて管理者のアドレスに書き換えることも可能です）
+            const mailtoUrl = `mailto:${emailVal}?subject=${mailSubject}&body=${mailBody}`;
+            document.getElementById('send-mail-action-btn').href = mailtoUrl;
         });
     </script>
 </body>
