@@ -70,6 +70,24 @@
         .submit-btn:hover { background-color: #174d63; }
 
         .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 0.3rem; background-color: #eee; display: block; margin-bottom: 0.3rem; }
+
+        /* --- カスタム確認モーダル（ポップアップ）のスタイル --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; box-sizing: border-box; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background-color: white; border-radius: 1.5rem; max-width: 450px; width: 100%; padding: 2rem; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; animation: modalOpen 0.2s ease-out; }
+        
+        @keyframes modalOpen {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-content h3 { font-size: 1.3rem; color: #206c8c; margin-top: 0; margin-bottom: 1rem; }
+        .modal-content p { color: #555; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5; }
+        .modal-btn-group { display: flex; gap: 1rem; justify-content: center; }
+        .modal-cancel-btn { background-color: #e2e8f0; color: #475569; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
+        .modal-cancel-btn:hover { background-color: #cbd5e1; }
+        .modal-confirm-btn { background-color: #dc2626; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
+        .modal-confirm-btn:hover { background-color: #b91c1c; }
     </style>
 </head>
 <body>
@@ -192,6 +210,18 @@
         </div>
     </div>
 
+    <!-- カスタム確認モーダル -->
+    <div class="modal-overlay" id="custom-confirm-modal">
+        <div class="modal-content">
+            <h3 id="modal-title">確認</h3>
+            <p id="modal-message">本当に実行しますか？</p>
+            <div class="modal-btn-group">
+                <button class="modal-cancel-btn" onclick="closeCustomConfirm(false)">キャンセル</button>
+                <button class="modal-confirm-btn" id="modal-submit-btn" onclick="closeCustomConfirm(true)">削除する</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
@@ -204,6 +234,7 @@
         let currentStatusFilter = 'all';
         let currentCategoryFilter = 'all';
         let calendar = null; // FullCalendarインスタンス
+        let confirmCallback = null; // 確認モーダルのコールバック関数
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedTab = localStorage.getItem('admin_active_tab') || 'reservations';
@@ -216,6 +247,25 @@
             loadReservations();
             loadProducts();
         });
+
+        // カスタム確認モーダルを表示する関数 (Promiseで返す)
+        function showCustomConfirm(title, message, confirmText = "削除する") {
+            return new Promise((resolve) => {
+                document.getElementById('modal-title').innerText = title;
+                document.getElementById('modal-message').innerText = message;
+                document.getElementById('modal-submit-btn').innerText = confirmText;
+                document.getElementById('custom-confirm-modal').classList.add('active');
+                confirmCallback = resolve;
+            });
+        }
+
+        function closeCustomConfirm(result) {
+            document.getElementById('custom-confirm-modal').classList.remove('active');
+            if (confirmCallback) {
+                confirmCallback(result);
+                confirmCallback = null;
+            }
+        }
 
         function initCalendar() {
             const calendarEl = document.getElementById('calendar');
@@ -247,7 +297,6 @@
 
             if (tabName === 'reservations') {
                 document.getElementById('section-reservations').classList.add('active');
-                // タブ切り替え時にカレンダーの表示崩れを防ぐため再描画
                 setTimeout(() => { if(calendar) calendar.updateSize(); }, 100);
             } else if (tabName === 'products') {
                 document.getElementById('section-products').classList.add('active');
@@ -282,13 +331,12 @@
             }
         }
 
-        // カレンダーに予約イベントを反映させる
         function updateCalendarEvents() {
             if (!calendar) return;
 
             const events = [];
             allReservationsData.forEach(res => {
-                if (res.status === 'キャンセル') return; // キャンセルは除外
+                if (res.status === 'キャンセル') return;
 
                 let endDateObj = new Date(res.end_date);
                 endDateObj.setDate(endDateObj.getDate() + 1);
@@ -301,10 +349,9 @@
                 });
                 const summaryText = `${res.user_name} (${res.department}): ${productNames.join(', ')}`;
 
-                // ステータスに応じた色分け（貸出済を水色に変更）
-                let bgColor = '#206c8c'; // 予約中（青系）
-                if (res.status === '貸出済') bgColor = '#0284c7'; // 貸出済（水色）
-                if (res.status === '返却済') bgColor = '#64748b'; // 返却済（グレー系）
+                let bgColor = '#206c8c';
+                if (res.status === '貸出済') bgColor = '#0284c7';
+                if (res.status === '返却済') bgColor = '#64748b';
 
                 events.push({
                     title: summaryText,
@@ -487,7 +534,9 @@
         }
 
         async function deleteReservation(reservationId) {
-            if (!confirm("本当にこの予約を削除しますか？")) return;
+            const confirmed = await showCustomConfirm("予約の削除確認", "本当にこの予約を削除しますか？", "削除する");
+            if (!confirmed) return;
+
             try {
                 await supabaseClient.from('reservation_items').delete().eq('reservation_id', reservationId);
                 await supabaseClient.from('reservations').delete().eq('id', reservationId);
@@ -544,11 +593,12 @@
         }
 
         async function deleteProduct(productId) {
-            if (!confirm("本当にこの商品を削除しますか？")) return;
+            const confirmed = await showCustomConfirm("商品の削除確認", "本当にこの商品を削除しますか？", "削除する");
+            if (!confirmed) return;
+
             try {
                 await supabaseClient.from('product_units').delete().eq('product_id', productId);
                 await supabaseClient.from('products').delete().eq('id', productId);
-                alert("商品を削除しました。");
                 loadProducts();
             } catch (err) {
                 console.error(err);
