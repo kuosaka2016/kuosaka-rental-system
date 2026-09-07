@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社内レンタル予約 | 予約の確認・キャンセル</title>
+    <meta name="robots" content="noindex, nofollow">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; }
+        .back-button { position: fixed; top: 1rem; left: 1rem; background-color: #ffffff; color: #333; text-decoration: none; padding: 0.5rem 1rem; border-radius: 1.5rem; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100; }
+        .main-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 5rem 2rem 2rem; box-sizing: border-box; }
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; text-align: center; color: #206c8c; }
+
+        .search-card { background-color: white; border-radius: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); width: 100%; padding: 2rem; box-sizing: border-box; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+        .search-group { flex-grow: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+        .search-group label { font-weight: bold; font-size: 0.9rem; color: #555; }
+        .search-group input { padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.5rem; font-size: 1rem; font-family: inherit; }
+        .search-btn { background-color: #206c8c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .search-btn:hover { background-color: #174d63; }
+
+        .result-container { width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
+        .reservation-card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1.5rem; border-left: 5px solid #206c8c; }
+        .reservation-card.cancelled { border-left-color: #cbd5e1; opacity: 0.7; }
+        
+        .res-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.8rem; margin-bottom: 1rem; }
+        .res-id { font-weight: bold; color: #555; }
+        .res-status { padding: 0.2rem 0.8rem; border-radius: 1rem; font-size: 0.85rem; font-weight: bold; background-color: #e6f2f5; color: #206c8c; }
+        .reservation-card.cancelled .res-status { background-color: #f1f5f9; color: #64748b; }
+
+        .res-body p { margin: 0.4rem 0; font-size: 0.95rem; }
+        .cancel-btn { background-color: #fee2e2; color: #991b1b; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 0.85rem; margin-top: 1rem; transition: background-color 0.2s; }
+        .cancel-btn:hover { background-color: #fecaca; }
+
+        .no-result { text-align: center; color: #666; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-button">&larr; トップに戻る</a>
+
+    <div class="main-container">
+        <h1>予約の確認・キャンセル</h1>
+
+        <div class="search-card">
+            <div class="search-group">
+                <label for="search-email">予約時に登録したメールアドレス</label>
+                <input type="email" id="search-email" placeholder="例: yamada@company.com">
+            </div>
+            <button class="search-btn" onclick="searchReservations()">予約を検索</button>
+        </div>
+
+        <div class="result-container" id="result-container">
+            <p style="text-align: center; color: #666;">メールアドレスを入力して「予約を検索」を押してください。</p>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function searchReservations() {
+            const email = document.getElementById('search-email').value.trim();
+            const container = document.getElementById('result-container');
+
+            if (!email) {
+                alert("メールアドレスを入力してください。");
+                return;
+            }
+
+            try {
+                container.innerHTML = '<p style="text-align: center; color: #666;">検索中...</p>';
+
+                // 該当メールアドレスの予約を取得
+                const { data: reservations, error: resError } = await supabaseClient
+                    .from('reservations')
+                    .select('*')
+                    .eq('email', email)
+                    .order('created_at', { ascending: false });
+
+                if (resError) throw resError;
+
+                if (!reservations || reservations.length === 0) {
+                    container.innerHTML = '<div class="no-result">該当する予約は見つかりませんでした。</div>';
+                    return;
+                }
+
+                // 予約項目（アイテム）も取得
+                const resIds = reservations.map(r => r.id);
+                const { data: items, error: itemError } = await supabaseClient
+                    .from('reservation_items')
+                    .select('*, products(name)')
+                    .in('reservation_id', resIds);
+
+                if (itemError) throw itemError;
+
+                container.innerHTML = '';
+                reservations.forEach(res => {
+                    const isCancelled = res.status === 'キャンセル';
+                    const card = document.createElement('div');
+                    card.className = `reservation-card ${isCancelled ? 'cancelled' : ''}`;
+
+                    const resItems = items.filter(i => i.reservation_id === res.id);
+                    let itemsHtml = '<ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">';
+                    resItems.forEach(i => {
+                        const prodName = i.products ? i.products.name : '商品';
+                        itemsHtml += `<li>${prodName} （${i.quantity}個）</li>`;
+                    });
+                    itemsHtml += '</ul>';
+
+                    card.innerHTML = `
+                        <div class="res-header">
+                            <span class="res-id">申込日時: ${new Date(res.created_at).toLocaleString('ja-JP')}</span>
+                            <span class="res-status">${res.status}</span>
+                        </div>
+                        <div class="res-body">
+                            <p><strong>申込者:</strong> ${res.user_name} （${res.department}）</p>
+                            <p><strong>レンタル期間:</strong> ${res.start_date} 〜 ${res.end_date}</p>
+                            <p><strong>予約商品:</strong></p>
+                            ${itemsHtml}
+                            ${!isCancelled ? `<button class="cancel-btn" onclick="cancelReservation('${res.id}')">この予約をキャンセルする</button>` : ''}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error(err);
+                alert("検索に失敗しました。\n" + err.message);
+                container.innerHTML = '<p style="text-align: center; color: red;">エラーが発生しました。</p>';
+            }
+        }
+
+        async function cancelReservation(reservationId) {
+            if (!confirm("本当にこの予約をキャンセルしますか？")) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('reservations')
+                    .update({ status: 'キャンセル' })
+                    .eq('id', reservationId);
+
+                if (error) throw error;
+
+                alert("予約をキャンセルしました。");
+                searchReservations(); // 再検索して画面を更新
+            } catch (err) {
+                console.error(err);
+                alert("キャンセルの処理に失敗しました。\n" + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
