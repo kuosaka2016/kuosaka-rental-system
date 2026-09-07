@@ -13,7 +13,7 @@
         h1 { font-size: 1.8rem; color: #206c8c; margin-top: 0; margin-bottom: 0.5rem; }
         p.subtitle { color: #666; margin-bottom: 2rem; font-size: 1rem; }
 
-        .info-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; text-align: left; margin-bottom: 2rem; }
+        .info-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; text-align: left; margin-bottom: 1.5rem; }
         .info-row { display: flex; margin-bottom: 0.8rem; font-size: 0.95rem; }
         .info-row:last-child { margin-bottom: 0; }
         .info-label { font-weight: bold; width: 110px; color: #555; flex-shrink: 0; }
@@ -21,13 +21,14 @@
 
         h2.section-title { font-size: 1.1rem; color: #206c8c; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.4rem; margin-top: 0; margin-bottom: 1rem; text-align: left; }
         
-        .item-list { list-style: none; padding: 0; margin: 0 0 1.5rem 0; text-align: left; }
-        .item-row { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed #eee; font-size: 0.95rem; }
+        .item-list { list-style: none; padding: 0; margin: 0; text-align: left; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.95rem; gap: 1rem; }
         .item-row:last-child { border-bottom: none; }
         .item-name { font-weight: bold; color: #333; }
-        .item-qty { color: #666; }
+        .item-period { font-size: 0.85rem; color: #666; display: block; margin-top: 0.2rem; }
+        .item-qty { font-weight: bold; color: #206c8c; background-color: #e6f2f5; padding: 0.2rem 0.6rem; border-radius: 0.5rem; flex-shrink: 0; }
 
-        .home-btn { background-color: #206c8c; color: white; text-decoration: none; padding: 0.8rem 2.5rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: inline-block; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .home-btn { background-color: #206c8c; color: white; text-decoration: none; padding: 0.8rem 2.5rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: inline-block; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 1rem; }
         .home-btn:hover { background-color: #174d63; }
     </style>
 </head>
@@ -35,7 +36,7 @@
     <div class="main-container">
         <div class="success-icon">🎉</div>
         <h1>予約が完了しました！</h1>
-        <p class="subtitle">以下の内容で社内レンタルの申し込みを受け付けました。</p>
+        <p class="subtitle">以下の内容で社内レンタルの申し込みを受け付けました。内容をご確認ください。</p>
 
         <div class="info-card">
             <h2 class="section-title">👤 申込者情報</h2>
@@ -54,7 +55,7 @@
         </div>
 
         <div class="info-card">
-            <h2 class="section-title">📦 予約内容・期間</h2>
+            <h2 class="section-title">📦 予約商品一覧</h2>
             <ul class="item-list" id="res-item-list">
                 <!-- JavaScriptで動的に挿入 -->
             </ul>
@@ -65,21 +66,21 @@
 
     <script>
         window.addEventListener('DOMContentLoaded', () => {
-            // localStorage から直近の予約詳細データを取得
+            // カート画面の予約処理から渡された直前の予約詳細データを取得
             const lastReservation = JSON.parse(localStorage.getItem('last_reservation_detail'));
 
             if (!lastReservation) {
-                // データがない場合はトップへ戻す
                 alert("予約データが見つかりませんでした。");
                 window.location.href = "index.html";
                 return;
             }
 
-            // 画面にデータを反映
+            // 申込者情報を画面に反映
             document.getElementById('res-name').innerText = lastReservation.userName;
             document.getElementById('res-dept').innerText = lastReservation.department;
             document.getElementById('res-email').innerText = lastReservation.email;
 
+            // 予約商品一覧を画面に反映
             const itemListEl = document.getElementById('res-item-list');
             itemListEl.innerHTML = '';
 
@@ -87,7 +88,10 @@
                 const li = document.createElement('li');
                 li.className = 'item-row';
                 li.innerHTML = `
-                    <span class="item-name">${item.name} (${item.startDate} 〜 ${item.endDate})</span>
+                    <div>
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-period">📅 ${item.startDate} 〜 ${item.endDate}</span>
+                    </div>
                     <span class="item-qty">${item.quantity} 個</span>
                 `;
                 itemListEl.appendChild(li);
