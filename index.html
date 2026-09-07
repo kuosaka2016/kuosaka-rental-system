@@ -16,8 +16,8 @@
         h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color: #206c8c; }
         p.subtitle { color: #666; margin-bottom: 2.5rem; font-size: 1.1rem; }
 
-        /* 注意事項ページへ移動するボタン */
-        .notice-trigger-btn { background-color: #fff8e1; color: #b78103; border: 1px solid #ffe082; padding: 0.8rem 1.5rem; border-radius: 2rem; font-size: 1rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s; text-decoration: none; }
+        /* 注意事項ポップアップを開くボタン */
+        .notice-trigger-btn { background-color: #fff8e1; color: #b78103; border: 1px solid #ffe082; padding: 0.8rem 1.5rem; border-radius: 2rem; font-size: 1rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s; }
         .notice-trigger-btn:hover { background-color: #ffecb3; }
 
         /* カテゴリ選択グリッド */
@@ -27,26 +27,39 @@
 
         /* 下部ナビゲーションエリア */
         .footer-nav { display: flex; gap: 1rem; justify-content: center; align-items: center; flex-wrap: wrap; width: 100%; margin-top: 0.5rem; }
-
-        /* 画面中央下のボタン共通 */
         .sub-link { background-color: #e2e8f0; color: #475569; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s, color 0.2s; display: inline-block; }
         .sub-link:hover { background-color: #cbd5e1; color: #1e293b; }
+
+        /* --- ポップアップ（モーダル）のスタイル --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; box-sizing: border-box; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background-color: white; border-radius: 1.5rem; max-width: 650px; width: 100%; padding: 2.5rem; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: left; animation: modalOpen 0.2s ease-out; }
+        
+        @keyframes modalOpen {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-content h2 { font-size: 1.5rem; color: #206c8c; margin-top: 0; margin-bottom: 1.2rem; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.6rem; }
+        .modal-list { padding-left: 1.2rem; margin: 0 0 2rem 0; line-height: 1.8; color: #444; font-size: 0.95rem; }
+        .modal-list li { margin-bottom: 1rem; }
+        .modal-list strong { color: #206c8c; }
+        
+        .modal-close-btn { background-color: #206c8c; color: white; border: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; cursor: pointer; display: block; width: 100%; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .modal-close-btn:hover { background-color: #174d63; }
     </style>
 </head>
 <body>
-    <!-- 右上に配置したカートを見るボタン -->
     <a href="cart.html" class="cart-icon" id="cart-nav-btn">🛒 カートを見る</a>
 
     <div class="main-container">
         <h1>ユニオンレンタル品予約</h1>
         <p class="subtitle">利用したい商品のカテゴリを選択してください</p>
 
-        <!-- 注意事項ページへ移動するボタン -->
-        <a href="notice.html" class="notice-trigger-btn">
+        <button class="notice-trigger-btn" onclick="openModal()">
             ⚠️ ご利用前の注意事項（必ずお読みください）
-        </a>
+        </button>
 
-        <!-- カテゴリ一覧 -->
         <div class="category-grid">
             <a href="travel.html" class="category-card">トラベル</a>
             <a href="sports.html" class="category-card">スポーツ</a>
@@ -54,15 +67,27 @@
             <a href="others.html" class="category-card">その他</a>
         </div>
 
-        <!-- 画面中央下のボタン群（予約確認・管理者画面） -->
         <div class="footer-nav">
             <a href="my-reservations.html" class="sub-link">🔍 自分の予約を確認・キャンセル</a>
             <a href="admin.html" class="sub-link" onclick="goToAdmin(event)">管理者画面へ</a>
         </div>
     </div>
 
+    <div class="modal-overlay" id="notice-modal">
+        <div class="modal-content">
+            <h2>⚠️ ご利用上の注意事項</h2>
+            <ul class="modal-list">
+                <li><strong>レンタル期間の厳守:</strong> 予約した開始日と終了日を必ず守ってください。次の予約者の迷惑になりますので、返却遅延が発生する場合は速やかに管理者へご連絡ください。</li>
+                <li><strong>丁寧な扱いと管理:</strong> 社内備品ですので、次に使う方が気持ちよく利用できるよう大切に扱ってください。</li>
+                <li><strong>破損・紛失時の対応:</strong> 万が一、利用中に備品の破損や紛失が発生した場合は、必ずご報告ください。</li>
+                <li><strong>返却時の状態:</strong> 使用後は汚れを落とし、付属品やケースが揃っていることを確認した上でご返却ください。</li>
+            </ul>
+            <button class="modal-close-btn" onclick="closeModal()">閉じる</button>
+        </div>
+    </div>
+
     <script>
-        // ページ読み込み時にカートの件数をチェックしてボタン表示を更新
+        // ページ読み込み時にカートの件数をチェック
         window.addEventListener('DOMContentLoaded', () => {
             const cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
             const cartBtn = document.getElementById('cart-nav-btn');
@@ -71,7 +96,24 @@
             }
         });
 
-        // 管理者画面へ進む際、強制的に「予約一覧タブ（reservations）」を指定して移動する
+        // モーダルを開く
+        function openModal() {
+            document.getElementById('notice-modal').classList.add('active');
+        }
+
+        // モーダルを閉じる
+        function closeModal() {
+            document.getElementById('notice-modal').classList.remove('active');
+        }
+
+        // モーダルの外側をクリックしても閉じるようにする場合
+        document.getElementById('notice-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                closeModal();
+            }
+        });
+
+        // 管理者画面へ進む処理
         function goToAdmin(event) {
             event.preventDefault();
             localStorage.setItem('admin_active_tab', 'reservations');
