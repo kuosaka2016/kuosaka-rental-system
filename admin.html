@@ -6,6 +6,9 @@
     <meta name="robots" content="noindex, nofollow">
     <title>社内レンタル予約 | 管理画面</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- FullCalendarのCSS & JS (CDN) -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; color: #333; }
         .header { background-color: #333; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
@@ -27,6 +30,10 @@
         .card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; overflow-x: auto; margin-bottom: 2rem; }
         .card h2 { margin-top: 0; font-size: 1.2rem; color: #206c8c; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
         
+        /* カレンダー固有のスタイル調整 */
+        #calendar { max-width: 100%; margin: 0 auto; background: #fff; padding: 0.5rem; border-radius: 0.8rem; }
+        .fc-event { cursor: pointer; font-size: 0.85rem; padding: 2px 4px; border-radius: 4px; }
+
         .filter-menu { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .filter-btn { background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         .filter-btn.active { background-color: #206c8c; color: white; border-color: #206c8c; }
@@ -78,6 +85,12 @@
         </div>
 
         <div id="section-reservations" class="admin-section active">
+            <!-- 予約日程カレンダー表示用カード -->
+            <div class="card">
+                <h2>📅 予約スケジュール カレンダー</h2>
+                <div id="calendar"></div>
+            </div>
+
             <div class="card">
                 <h2>
                     📋 予約・貸出管理一覧
@@ -190,15 +203,43 @@
         let allUnitsData = [];
         let currentStatusFilter = 'all';
         let currentCategoryFilter = 'all';
+        let calendar = null; // FullCalendarインスタンス
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedTab = localStorage.getItem('admin_active_tab') || 'reservations';
             const targetBtn = savedTab === 'products' ? document.getElementById('btn-products') : document.getElementById('btn-reservations');
             switchTab(savedTab, targetBtn);
 
+            // カレンダーの初期化
+            initCalendar();
+
             loadReservations();
             loadProducts();
         });
+
+        function initCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ja',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                buttonText: {
+                    today: '今日',
+                    month: '月',
+                    week: '週'
+                },
+                height: 'auto',
+                events: [],
+                eventClick: function(info) {
+                    alert(info.event.title + "\n\n" + (info.event.extendedProps.description || ''));
+                }
+            });
+            calendar.render();
+        }
 
         function switchTab(tabName, btnElement) {
             document.querySelectorAll('.admin-section').forEach(sec => sec.classList.remove('active'));
@@ -206,6 +247,8 @@
 
             if (tabName === 'reservations') {
                 document.getElementById('section-reservations').classList.add('active');
+                // タブ切り替え時にカレンダーの表示崩れを防ぐため再描画
+                setTimeout(() => { if(calendar) calendar.updateSize(); }, 100);
             } else if (tabName === 'products') {
                 document.getElementById('section-products').classList.add('active');
             }
@@ -232,10 +275,53 @@
                 allUnitsData = units || [];
 
                 renderReservationList();
+                updateCalendarEvents();
             } catch (err) {
                 console.error(err);
                 tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
             }
+        }
+
+        // カレンダーに予約イベントを反映させる
+        function updateCalendarEvents() {
+            if (!calendar) return;
+
+            const events = [];
+            allReservationsData.forEach(res => {
+                if (res.status === 'キャンセル') return; // キャンセルは除外
+
+                // 終了日の翌日を設定しないとFullCalendarの仕様で終了日当日が非表示になるため補正
+                let endDateObj = new Date(res.end_date);
+                endDateObj.setDate(endDateObj.getDate() + 1);
+                const adjustedEndDate = endDateObj.toISOString().split('T')[0];
+
+                // 予約されている商品名のリストを作成
+                const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
+                const productNames = myItems.map(item => {
+                    const product = allProductsData.find(p => p.id === item.product_id);
+                    return product ? product.name : '商品';
+                });
+                const summaryText = `${res.user_name} (${res.department}): ${productNames.join(', ')}`;
+
+                // ステータスに応じた色分け
+                let bgColor = '#206c8c'; // 予約中
+                if (res.status === '貸出済') bgColor = '#16a34a';
+                if (res.status === '返却済') bgColor = '#64748b';
+
+                events.push({
+                    title: summaryText,
+                    start: res.start_date,
+                    end: adjustedEndDate,
+                    backgroundColor: bgColor,
+                    borderColor: bgColor,
+                    extendedProps: {
+                        description: `申込者: ${res.user_name} (${res.department})\n期間: ${res.start_date} 〜 ${res.end_date}\nステータス: ${res.status}\nメール: ${res.email}`
+                    }
+                });
+            });
+
+            calendar.removeAllEvents();
+            calendar.addEventSource(events);
         }
 
         function filterReservations(status, btnElement) {
