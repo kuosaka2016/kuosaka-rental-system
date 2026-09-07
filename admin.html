@@ -524,7 +524,6 @@
             try {
                 const { error } = await supabaseClient.from('reservations').update({ status: newStatus }).eq('id', reservationId);
                 if (error) throw error;
-                alert(`ステータスを「${newStatus}」に更新しました。`);
                 loadReservations(); 
             } catch (err) {
                 console.error(err);
@@ -584,7 +583,6 @@
                     }
                 }
 
-                alert("商品情報を更新しました！");
                 loadProducts(); 
             } catch (err) {
                 console.error(err);
