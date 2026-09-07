@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>社内レンタル予約 | 予約の確認・キャンセル</title>
+    <title>社内レンタル予約 | 予約の確認・変更・キャンセル</title>
     <meta name="robots" content="noindex, nofollow">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
@@ -29,8 +29,22 @@
         .reservation-card.cancelled .res-status { background-color: #f1f5f9; color: #64748b; }
 
         .res-body p { margin: 0.4rem 0; font-size: 0.95rem; }
-        .cancel-btn { background-color: #fee2e2; color: #991b1b; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 0.85rem; margin-top: 1rem; transition: background-color 0.2s; }
+        
+        .btn-group { display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap; }
+        .action-btn { border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: background-color 0.2s; }
+        .edit-btn { background-color: #e0f2fe; color: #0369a1; }
+        .edit-btn:hover { background-color: #bae6fd; }
+        .cancel-btn { background-color: #fee2e2; color: #991b1b; }
         .cancel-btn:hover { background-color: #fecaca; }
+
+        /* 期間変更フォーム（初期非表示） */
+        .edit-form-area { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.8rem; padding: 1rem; margin-top: 1rem; display: none; }
+        .edit-form-area.active { display: block; }
+        .edit-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; }
+        .edit-row label { font-size: 0.85rem; font-weight: bold; color: #555; }
+        .edit-row input { padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; }
+        .save-edit-btn { background-color: #0284c7; color: white; border: none; padding: 0.4rem 1rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; }
+        .save-edit-btn:hover { background-color: #0369a1; }
 
         .no-result { text-align: center; color: #666; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     </style>
@@ -39,7 +53,7 @@
     <a href="index.html" class="back-button">&larr; トップに戻る</a>
 
     <div class="main-container">
-        <h1>予約の確認・キャンセル</h1>
+        <h1>予約の確認・変更・キャンセル</h1>
 
         <div class="search-card">
             <div class="search-group">
@@ -71,7 +85,6 @@
             try {
                 container.innerHTML = '<p style="text-align: center; color: #666;">検索中...</p>';
 
-                // 該当メールアドレスの予約を取得
                 const { data: reservations, error: resError } = await supabaseClient
                     .from('reservations')
                     .select('*')
@@ -85,7 +98,6 @@
                     return;
                 }
 
-                // 予約項目（アイテム）も取得
                 const resIds = reservations.map(r => r.id);
                 const { data: items, error: itemError } = await supabaseClient
                     .from('reservation_items')
@@ -115,10 +127,30 @@
                         </div>
                         <div class="res-body">
                             <p><strong>申込者:</strong> ${res.user_name} （${res.department}）</p>
-                            <p><strong>レンタル期間:</strong> ${res.start_date} 〜 ${res.end_date}</p>
+                            <p><strong>現在のレンタル期間:</strong> <span id="period-text-${res.id}">${res.start_date} 〜 ${res.end_date}</span></p>
                             <p><strong>予約商品:</strong></p>
                             ${itemsHtml}
-                            ${!isCancelled ? `<button class="cancel-btn" onclick="cancelReservation('${res.id}')">この予約をキャンセルする</button>` : ''}
+                            
+                            ${!isCancelled ? `
+                                <div class="btn-group">
+                                    <button class="action-btn edit-btn" onclick="toggleEditForm('${res.id}')">📅 期間を変更する</button>
+                                    <button class="action-btn cancel-btn" onclick="cancelReservation('${res.id}')">この予約をキャンセルする</button>
+                                </div>
+
+                                <div class="edit-form-area" id="edit-form-${res.id}">
+                                    <div class="edit-row">
+                                        <div>
+                                            <label>新しい開始日</label><br>
+                                            <input type="date" id="new-start-${res.id}" value="${res.start_date}">
+                                        </div>
+                                        <div>
+                                            <label>新しい終了日</label><br>
+                                            <input type="date" id="new-end-${res.id}" value="${res.end_date}">
+                                        </div>
+                                    </div>
+                                    <button class="save-edit-btn" onclick="updateReservationPeriod('${res.id}')">変更を確定する</button>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                     container.appendChild(card);
@@ -128,6 +160,88 @@
                 console.error(err);
                 alert("検索に失敗しました。\n" + err.message);
                 container.innerHTML = '<p style="text-align: center; color: red;">エラーが発生しました。</p>';
+            }
+        }
+
+        function toggleEditForm(resId) {
+            const form = document.getElementById(`edit-form-${resId}`);
+            form.classList.toggle('active');
+        }
+
+        // 期間変更処理（他予約との競合・在庫照合チェック付き）
+        async function updateReservationPeriod(resId) {
+            const newStart = document.getElementById(`new-start-${resId}`).value;
+            const newEnd = document.getElementById(`new-end-${resId}`).value;
+
+            if (!newStart || !newEnd) {
+                alert("日付を入力してください。");
+                return;
+            }
+            if (newStart > newEnd) {
+                alert("終了日は開始日以降の日付に設定してください。");
+                return;
+            }
+
+            try {
+                // 1. この予約に含まれる商品と数量を取得
+                const { data: targetItems, error: tiErr } = await supabaseClient
+                    .from('reservation_items')
+                    .select('*')
+                    .eq('reservation_id', resId);
+                if (tiErr) throw tiErr;
+
+                // 2. 他の有効な予約とアイテムを取得して空き状況を照合
+                const { data: unitsData, error: uErr } = await supabaseClient.from('product_units').select('*');
+                const { data: allRes, error: rErr } = await supabaseClient.from('reservations').select('*').not('status', 'in', '("キャンセル","返却済")').neq('id', resId);
+                const { data: allItems, error: iErr } = await supabaseClient.from('reservation_items').select('*');
+                const { data: productsData, error: pErr } = await supabaseClient.from('products').select('*');
+
+                if (uErr || rErr || iErr || pErr) throw (uErr || rErr || iErr || pErr);
+
+                // 新しい期間と重なる他の予約IDを抽出
+                const conflictingResIds = allRes.filter(r => !(r.end_date < newStart || r.start_date > newEnd)).map(r => r.id);
+                const bookedUnitIds = allItems.filter(i => conflictingResIds.includes(i.reservation_id) && i.unit_id).map(i => i.unit_id);
+
+                // 各商品ごとに新しい期間での在庫をチェック
+                for (const tItem of targetItems) {
+                    const prodId = tItem.product_id;
+                    const reqQty = tItem.quantity;
+                    const productInfo = productsData.find(p => p.id === prodId);
+                    const prodUnits = unitsData.filter(u => u.product_id === prodId);
+
+                    if (prodUnits.length > 0) {
+                        const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
+                        if (availableUnits.length < reqQty) {
+                            throw new Error(`指定された期間では「${productInfo ? productInfo.name : '商品'}」の在庫（個体）が不足しているため変更できません。`);
+                        }
+                    } else {
+                        const totalStock = productInfo ? (productInfo.total_stock || 1) : 1;
+                        let bookedQty = 0;
+                        allItems.forEach(i => {
+                            if (conflictingResIds.includes(i.reservation_id) && i.product_id === prodId && !i.unit_id) {
+                                bookedQty += i.quantity;
+                            }
+                        });
+                        if ((totalStock - bookedQty) < reqQty) {
+                            throw new Error(`指定された期間では「${productInfo ? productInfo.name : '商品'}」の在庫が不足しているため変更できません。`);
+                        }
+                    }
+                }
+
+                // 3. 在庫・競合チェックOKなら reservations テーブルの期間を更新
+                const { error: updateErr } = await supabaseClient
+                    .from('reservations')
+                    .update({ start_date: newStart, end_date: newEnd })
+                    .eq('id', resId);
+
+                if (updateErr) throw updateErr;
+
+                alert("レンタル期間を変更しました！");
+                searchReservations(); // 再検索して画面を最新に更新
+
+            } catch (err) {
+                console.error(err);
+                alert("期間の変更に失敗しました。\n" + err.message);
             }
         }
 
@@ -143,7 +257,7 @@
                 if (error) throw error;
 
                 alert("予約をキャンセルしました。");
-                searchReservations(); // 再検索して画面を更新
+                searchReservations();
             } catch (err) {
                 console.error(err);
                 alert("キャンセルの処理に失敗しました。\n" + err.message);
