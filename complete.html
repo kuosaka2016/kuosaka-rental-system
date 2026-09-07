@@ -31,7 +31,7 @@
         .item-qty { font-weight: bold; color: #206c8c; background-color: #e6f2f5; padding: 0.2rem 0.6rem; border-radius: 0.5rem; flex-shrink: 0; }
 
         .btn-group { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem; }
-        .action-btn { text-decoration: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: inline-block; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .action-btn { text-decoration: none; padding: 0.9rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: block; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; }
         .mail-btn { background-color: #0284c7; color: white; }
         .mail-btn:hover { background-color: #0369a1; }
         .home-btn { background-color: #206c8c; color: white; }
@@ -126,7 +126,6 @@
                 `社内レンタル予約システム`
             );
 
-            // 宛先は本人のメールアドレス（必要に応じて管理者のアドレスに書き換えることも可能です）
             const mailtoUrl = `mailto:${emailVal}?subject=${mailSubject}&body=${mailBody}`;
             document.getElementById('send-mail-action-btn').href = mailtoUrl;
         });
