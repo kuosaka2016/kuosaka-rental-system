@@ -18,8 +18,6 @@
         .info-row:last-child { margin-bottom: 0; }
         .info-label { font-weight: bold; width: 110px; color: #555; flex-shrink: 0; }
         .info-value { color: #333; word-break: break-all; }
-        .info-value a { color: #206c8c; text-decoration: none; font-weight: bold; }
-        .info-value a:hover { text-decoration: underline; }
 
         h2.section-title { font-size: 1.1rem; color: #206c8c; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.4rem; margin-top: 0; margin-bottom: 1.0rem; text-align: left; }
         
@@ -30,12 +28,11 @@
         .item-period { font-size: 0.85rem; color: #666; display: block; margin-top: 0.2rem; }
         .item-qty { font-weight: bold; color: #206c8c; background-color: #e6f2f5; padding: 0.2rem 0.6rem; border-radius: 0.5rem; flex-shrink: 0; }
 
-        .btn-group { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem; }
-        .action-btn { text-decoration: none; padding: 0.9rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: block; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; }
-        .mail-btn { background-color: #0284c7; color: white; }
-        .mail-btn:hover { background-color: #0369a1; }
-        .home-btn { background-color: #206c8c; color: white; }
-        .home-btn:hover { background-color: #174d63; }
+        .action-btn { background-color: #0284c7; color: white; text-decoration: none; padding: 0.9rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; display: block; width: 100%; box-sizing: border-box; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; margin-bottom: 0.8rem; border: none; cursor: pointer; }
+        .action-btn:hover { background-color: #0369a1; }
+
+        .home-btn { background-color: #e2e8f0; color: #475569; }
+        .home-btn:hover { background-color: #cbd5e1; }
     </style>
 </head>
 <body>
@@ -56,7 +53,7 @@
             </div>
             <div class="info-row">
                 <span class="info-label">メール:</span>
-                <span class="info-value" id="res-email"><a href="#" id="email-link">-</a></span>
+                <span class="info-value" id="res-email">-</span>
             </div>
         </div>
 
@@ -67,10 +64,9 @@
             </ul>
         </div>
 
-        <div class="btn-group">
-            <a href="#" id="send-mail-action-btn" class="action-btn mail-btn">📧 予約内容をメールで送る（控え）</a>
-            <a href="index.html" class="action-btn home-btn">トップページに戻る</a>
-        </div>
+        <!-- 確実に表示されるメール送信ボタン ＆ トップに戻るボタン -->
+        <a id="mail-link-btn" href="#" class="action-btn">📧 予約内容をメールで送る（控え）</a>
+        <a href="index.html" class="action-btn home-btn">トップページに戻る</a>
     </div>
 
     <script>
@@ -86,11 +82,7 @@
             // 申込者情報反映
             document.getElementById('res-name').innerText = lastReservation.userName;
             document.getElementById('res-dept').innerText = lastReservation.department;
-            
-            const emailVal = lastReservation.email;
-            const emailLink = document.getElementById('email-link');
-            emailLink.innerText = emailVal;
-            emailLink.href = `mailto:${emailVal}`;
+            document.getElementById('res-email').innerText = lastReservation.email;
 
             // 商品一覧反映
             const itemListEl = document.getElementById('res-item-list');
@@ -112,22 +104,23 @@
                 itemsTextSummary += `- ${item.name} (${item.quantity}個) / 期間: ${item.startDate} 〜 ${item.endDate}\n`;
             });
 
-            // メールの件名と本文を自動生成して mailto リンクを組み立てる
+            // メールの件名と本文を自動生成
             const mailSubject = encodeURIComponent("【社内レンタル予約完了の控え】");
             const mailBody = encodeURIComponent(
                 `以下の内容で社内レンタルの予約を受け付けました。\n\n` +
                 `【申込者情報】\n` +
                 `氏名: ${lastReservation.userName}\n` +
                 `所属部署: ${lastReservation.department}\n` +
-                `メール: ${emailVal}\n\n` +
+                `メール: ${lastReservation.email}\n\n` +
                 `【予約商品】\n` +
                 `${itemsTextSummary}\n` +
                 `----------------------------------------\n` +
                 `社内レンタル予約システム`
             );
 
-            const mailtoUrl = `mailto:${emailVal}?subject=${mailSubject}&body=${mailBody}`;
-            document.getElementById('send-mail-action-btn').href = mailtoUrl;
+            // メール送信ボタンにリンクをセット
+            const mailBtn = document.getElementById('mail-link-btn');
+            mailBtn.href = `mailto:${lastReservation.email}?subject=${mailSubject}&body=${mailBody}`;
         });
     </script>
 </body>
