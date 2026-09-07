@@ -226,7 +226,19 @@
             const cartBtn = document.getElementById('cart-nav-btn');
             cartBtn.innerHTML = `🛒 カート <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.4rem; border-radius: 1rem; font-size: 0.8rem;">${cart.length}</span>`;
 
-            alert(`${productName}（${startDate} 〜 ${endDate}）を ${quantity}個 カートに追加しました！`);
+            // ポップアップを出さず、ボタンの見た目を一時的に変更して通知
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "追加しました！";
+            btnElement.style.backgroundColor = "#16a34a";
+            btnElement.style.color = "white";
+            btnElement.disabled = true;
+
+            setTimeout(() => {
+                btnElement.innerText = originalText;
+                btnElement.style.backgroundColor = "#f6eb16";
+                btnElement.style.color = "#333";
+                btnElement.disabled = false;
+            }, 1200);
         }
     </script>
 </body>
