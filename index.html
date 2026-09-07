@@ -8,6 +8,10 @@
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; justify-content: center; }
 
+        /* 右上に配置するカートボタン */
+        .cart-icon { position: fixed; top: 1rem; right: 1rem; background-color: #333; color: white; padding: 0.5rem 1.5rem; border-radius: 1.5rem; font-weight: bold; z-index: 100; cursor: pointer; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: inline-flex; align-items: center; gap: 0.4rem; }
+        .cart-icon:hover { background-color: #555; }
+
         .main-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 2rem; box-sizing: border-box; text-align: center; }
         h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color: #206c8c; }
         p.subtitle { color: #666; margin-bottom: 2.5rem; font-size: 1.1rem; }
@@ -21,13 +25,8 @@
         .category-card { background-color: #206c8c; color: white; border-radius: 1.5rem; padding: 2rem 1.5rem; text-decoration: none; font-size: 2.0rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s, background-color 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; box-sizing: border-box; }
         .category-card:hover { background-color: #174d63; transform: translateY(-3px); }
 
-        /* 下部ボタン群（カートボタン ＆ 管理者画面ボタン） */
-        .footer-nav { display: flex; gap: 1rem; justify-content: center; align-items: center; flex-wrap: wrap; width: 100%; }
-
-        .cart-link { background-color: #333; color: white; text-decoration: none; padding: 0.75rem 2rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background-color 0.2s; display: inline-flex; align-items: center; gap: 0.4rem; }
-        .cart-link:hover { background-color: #555; }
-
-        .admin-link { background-color: #e2e8f0; color: #475569; text-decoration: none; padding: 0.75rem 2rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s, color 0.2s; }
+        /* 画面中央下の管理者画面ボタン */
+        .admin-link { background-color: #e2e8f0; color: #475569; text-decoration: none; padding: 0.75rem 2rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s, color 0.2s; display: inline-block; }
         .admin-link:hover { background-color: #cbd5e1; color: #1e293b; }
 
         /* ポップアップ（モーダル）の背景 */
@@ -51,6 +50,9 @@
     </style>
 </head>
 <body>
+    <!-- 右上に配置したカートを見るボタン -->
+    <a href="cart.html" class="cart-icon" id="cart-nav-btn">🛒 カートを見る</a>
+
     <div class="main-container">
         <h1>社内レンタル予約</h1>
         <p class="subtitle">利用したい商品のカテゴリを選択してください</p>
@@ -68,11 +70,8 @@
             <a href="others.html" class="category-card">その他</a>
         </div>
 
-        <!-- 画面中央下のナビゲーション（カート ＆ 管理者画面） -->
-        <div class="footer-nav">
-            <a href="cart.html" class="cart-link" id="cart-nav-btn">🛒 カートを見る</a>
-            <a href="admin.html" class="admin-link">管理者画面へ</a>
-        </div>
+        <!-- 画面中央下の管理者画面ボタン -->
+        <a href="admin.html" class="admin-link">管理者画面へ</a>
     </div>
 
     <!-- ポップアップ（モーダル）本体 -->
@@ -97,7 +96,7 @@
             const cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
             const cartBtn = document.getElementById('cart-nav-btn');
             if (cart.length > 0) {
-                cartBtn.innerHTML = `🛒 カートを見る <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.5rem; border-radius: 1rem; font-size: 0.85rem;">${cart.length}件</span>`;
+                cartBtn.innerHTML = `🛒 カート <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.4rem; border-radius: 1rem; font-size: 0.8rem;">${cart.length}</span>`;
             }
         });
 
