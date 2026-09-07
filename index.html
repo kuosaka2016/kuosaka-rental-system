@@ -16,8 +16,8 @@
         h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color: #206c8c; }
         p.subtitle { color: #666; margin-bottom: 2.5rem; font-size: 1.1rem; }
 
-        /* 注意事項を開くボタン */
-        .notice-trigger-btn { background-color: #fff8e1; color: #b78103; border: 1px solid #ffe082; padding: 0.8rem 1.5rem; border-radius: 2rem; font-size: 1rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s; }
+        /* 注意事項ページへ移動するボタン */
+        .notice-trigger-btn { background-color: #fff8e1; color: #b78103; border: 1px solid #ffe082; padding: 0.8rem 1.5rem; border-radius: 2rem; font-size: 1rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 2.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s; text-decoration: none; }
         .notice-trigger-btn:hover { background-color: #ffecb3; }
 
         /* カテゴリ選択グリッド */
@@ -25,28 +25,12 @@
         .category-card { background-color: #206c8c; color: white; border-radius: 1.5rem; padding: 2rem 1.5rem; text-decoration: none; font-size: 2.0rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s, background-color 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; box-sizing: border-box; }
         .category-card:hover { background-color: #174d63; transform: translateY(-3px); }
 
-        /* 画面中央下の管理者画面ボタン */
-        .admin-link { background-color: #e2e8f0; color: #475569; text-decoration: none; padding: 0.75rem 2rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s, color 0.2s; display: inline-block; }
-        .admin-link:hover { background-color: #cbd5e1; color: #1e293b; }
+        /* 下部ナビゲーションエリア */
+        .footer-nav { display: flex; gap: 1rem; justify-content: center; align-items: center; flex-wrap: wrap; width: 100%; margin-top: 0.5rem; }
 
-        /* ポップアップ（モーダル）の背景 */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
-        .modal-overlay.active { display: flex; }
-
-        /* ポップアップのコンテンツボックス */
-        .modal-box { background-color: white; border-radius: 1.5rem; width: 100%; max-width: 600px; padding: 2rem; box-sizing: border-box; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: modalOpen 0.3s ease; max-height: 90vh; overflow-y: auto; }
-        @keyframes modalOpen { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f2f5; padding-bottom: 0.8rem; margin-bottom: 1.2rem; }
-        .modal-header h2 { margin: 0; font-size: 1.3rem; color: #206c8c; display: flex; align-items: center; gap: 0.5rem; }
-        
-        .close-btn { background: none; border: none; font-size: 1.5rem; color: #888; cursor: pointer; padding: 0.2rem 0.5rem; border-radius: 50%; }
-        .close-btn:hover { background-color: #f0f2f5; color: #333; }
-
-        /* 注意事項のリスト内容 */
-        .notice-list { padding-left: 1.2rem; margin: 0; line-height: 1.8; color: #444; font-size: 0.95rem; }
-        .notice-list li { margin-bottom: 0.8rem; }
-        .notice-list strong { color: #206c8c; }
+        /* 画面中央下のボタン共通 */
+        .sub-link { background-color: #e2e8f0; color: #475569; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s, color 0.2s; display: inline-block; }
+        .sub-link:hover { background-color: #cbd5e1; color: #1e293b; }
     </style>
 </head>
 <body>
@@ -57,10 +41,10 @@
         <h1>社内レンタル予約</h1>
         <p class="subtitle">利用したい商品のカテゴリを選択してください</p>
 
-        <!-- 注意事項を開くボタン -->
-        <button class="notice-trigger-btn" onclick="openNoticeModal()">
+        <!-- 注意事項ページへ移動するボタン -->
+        <a href="notice.html" class="notice-trigger-btn">
             ⚠️ ご利用前の注意事項（必ずお読みください）
-        </button>
+        </a>
 
         <!-- カテゴリ一覧 -->
         <div class="category-grid">
@@ -70,23 +54,10 @@
             <a href="others.html" class="category-card">その他</a>
         </div>
 
-        <!-- 画面中央下の管理者画面ボタン（クリック時に予約一覧タブを指定して開く） -->
-        <a href="admin.html" class="admin-link" onclick="goToAdmin(event)">管理者画面へ</a>
-    </div>
-
-    <!-- ポップアップ（モーダル）本体 -->
-    <div class="modal-overlay" id="notice-modal" onclick="handleOutsideClick(event)">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h2>⚠️ ご利用上の注意事項</h2>
-                <button class="close-btn" onclick="closeNoticeModal()">&times;</button>
-            </div>
-            <ul class="notice-list">
-                <li><strong>レンタル期間の厳守:</strong> 予約した開始日と終了日を必ず守ってください。次の予約者の迷惑になりますので、返却遅延が発生する場合は速やかに管理者へご連絡ください。</li>
-                <li><strong>丁寧な扱いと管理:</strong> 社内備品ですので、次に使う方が気持ちよく利用できるよう大切に扱ってください。</li>
-                <li><strong>破損・紛失時の対応:</strong> 万が一、利用中に備品の破損や紛失が発生した場合は、必ずご報告ください。</li>
-                <li><strong>返却時の状態:</strong> 使用後は汚れを落とし、付属品やケースが揃っていることを確認した上でご返却ください。</li>
-            </ul>
+        <!-- 画面中央下のボタン群（予約確認・管理者画面） -->
+        <div class="footer-nav">
+            <a href="my-reservations.html" class="sub-link">🔍 自分の予約を確認・キャンセル</a>
+            <a href="admin.html" class="sub-link" onclick="goToAdmin(event)">管理者画面へ</a>
         </div>
     </div>
 
@@ -105,21 +76,6 @@
             event.preventDefault();
             localStorage.setItem('admin_active_tab', 'reservations');
             window.location.href = "admin.html";
-        }
-
-        function openNoticeModal() {
-            document.getElementById('notice-modal').classList.add('active');
-        }
-
-        function closeNoticeModal() {
-            document.getElementById('notice-modal').classList.remove('active');
-        }
-
-        function handleOutsideClick(event) {
-            const overlay = document.getElementById('notice-modal');
-            if (event.target === overlay) {
-                closeNoticeModal();
-            }
         }
     </script>
 </body>
