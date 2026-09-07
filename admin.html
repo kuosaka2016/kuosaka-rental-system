@@ -56,7 +56,7 @@
         .table-select { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; background-color: white; cursor: pointer; }
 
         .action-btns { display: flex; gap: 0.5rem; }
-        .save-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .save-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         .save-btn:hover { background-color: #bae6fd; }
 
         .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
@@ -504,7 +504,7 @@
                     <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: No.1, No.2"></td>
                     <td>
                         <div class="action-btns">
-                            <button onclick="saveProduct('${prod.id}', '${prod.image_url || ''}')" class="save-btn">変更を保存</button>
+                            <button onclick="saveProduct(this, '${prod.id}', '${prod.image_url || ''}')" class="save-btn">変更を保存</button>
                             <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
                         </div>
                     </td>
@@ -547,7 +547,7 @@
             }
         }
 
-        async function saveProduct(productId, currentImageUrl) {
+        async function saveProduct(btnElement, productId, currentImageUrl) {
             const newName = document.getElementById(`name-${productId}`).value.trim();
             const newCategory = document.getElementById(`cat-${productId}`).value;
             const newStock = parseInt(document.getElementById(`stock-${productId}`).value, 10);
@@ -583,7 +583,24 @@
                     }
                 }
 
-                loadProducts(); 
+                // 保存成功時にボタンの見た目を一時的に変更して通知
+                const originalText = btnElement.innerText;
+                const originalBg = btnElement.style.backgroundColor;
+                const originalColor = btnElement.style.color;
+
+                btnElement.innerText = "保存しました！";
+                btnElement.style.backgroundColor = "#16a34a";
+                btnElement.style.color = "white";
+                btnElement.disabled = true;
+
+                setTimeout(() => {
+                    btnElement.innerText = originalText;
+                    btnElement.style.backgroundColor = originalBg;
+                    btnElement.style.color = originalColor;
+                    btnElement.disabled = false;
+                    loadProducts(); 
+                }, 1200);
+
             } catch (err) {
                 console.error(err);
                 alert("更新に失敗しました。\n" + err.message);
