@@ -7,8 +7,6 @@
     <meta name="robots" content="noindex, nofollow">
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: #f7f9fa; color: #333; display: flex; flex-direction: column; min-height: 100vh; align-items: center; justify-content: center; }
-        .admin-link { position: fixed; top: 1rem; right: 1rem; background-color: #333; color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 1.5rem; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100; }
-        .admin-link:hover { background-color: #555; }
 
         .main-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 2rem; box-sizing: border-box; text-align: center; }
         h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color: #206c8c; }
@@ -19,9 +17,13 @@
         .notice-trigger-btn:hover { background-color: #ffecb3; }
 
         /* カテゴリ選択グリッド */
-        .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; width: 100%; }
-        .category-card { background-color: #206c8c; color: white; border-radius: 1.5rem; padding: 2rem 1.5rem; text-decoration: none; font-size: 2.0rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s, background-color 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; box-sizing: border-box; }
+        .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; width: 100%; margin-bottom: 2.5rem; }
+        .category-card { background-color: #206c8c; color: white; border-radius: 1.5rem; padding: 2rem 1.5rem; text-decoration: none; font-size: 1.6rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s, background-color 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; box-sizing: border-box; }
         .category-card:hover { background-color: #174d63; transform: translateY(-3px); }
+
+        /* 画面中央下に配置する管理者画面へのリンク */
+        .admin-link { background-color: #e2e8f0; color: #475569; text-decoration: none; padding: 0.75rem 2rem; border-radius: 1.5rem; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.2s, color 0.2s; }
+        .admin-link:hover { background-color: #cbd5e1; color: #1e293b; }
 
         /* ポップアップ（モーダル）の背景 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
@@ -44,27 +46,24 @@
     </style>
 </head>
 <body>
-    <a href="admin.html" class="admin-link">管理者画面へ</a>
-
     <div class="main-container">
         <h1>社内レンタル予約</h1>
         <p class="subtitle">利用したい商品のカテゴリを選択してください</p>
 
-        <!-- 注意事項を開くボタン -->
         <button class="notice-trigger-btn" onclick="openNoticeModal()">
             ⚠️ ご利用前の注意事項（必ずお読みください）
         </button>
 
-        <!-- カテゴリ一覧 -->
         <div class="category-grid">
             <a href="travel.html" class="category-card">トラベル</a>
             <a href="sports.html" class="category-card">スポーツ</a>
             <a href="outdoor.html" class="category-card">アウトドア</a>
             <a href="others.html" class="category-card">その他</a>
         </div>
+
+        <a href="admin.html" class="admin-link">管理者画面へ</a>
     </div>
 
-    <!-- ポップアップ（モーダル）本体 -->
     <div class="modal-overlay" id="notice-modal" onclick="handleOutsideClick(event)">
         <div class="modal-box">
             <div class="modal-header">
@@ -74,7 +73,7 @@
             <ul class="notice-list">
                 <li><strong>レンタル期間の厳守:</strong> 予約した開始日と終了日を必ず守ってください。次の予約者の迷惑になりますので、返却遅延が発生する場合は速やかに管理者へご連絡ください。</li>
                 <li><strong>丁寧な扱いと管理:</strong> 社内備品ですので、次に使う方が気持ちよく利用できるよう大切に扱ってください。</li>
-                <li><strong>破損・紛失時の対応:</strong> 万が一、利用中に備品の破損や紛失が発生した場合は、必ずご報告ください。</li>
+                <li><strong>破損・紛失時の対応:</strong> 万が一、利用中に備品の破損や紛失が発生した場合は、速やかにご報告ください。</li>
                 <li><strong>返却時の状態:</strong> 使用後は汚れを落とし、付属品やケースが揃っていることを確認した上でご返却ください。</li>
             </ul>
         </div>
@@ -89,7 +88,6 @@
             document.getElementById('notice-modal').classList.remove('active');
         }
 
-        // ポップアップの外側（グレーの背景部分）をタップしたときに閉じる
         function handleOutsideClick(event) {
             const overlay = document.getElementById('notice-modal');
             if (event.target === overlay) {
