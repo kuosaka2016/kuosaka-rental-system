@@ -290,12 +290,10 @@
             allReservationsData.forEach(res => {
                 if (res.status === 'キャンセル') return; // キャンセルは除外
 
-                // 終了日の翌日を設定しないとFullCalendarの仕様で終了日当日が非表示になるため補正
                 let endDateObj = new Date(res.end_date);
                 endDateObj.setDate(endDateObj.getDate() + 1);
                 const adjustedEndDate = endDateObj.toISOString().split('T')[0];
 
-                // 予約されている商品名のリストを作成
                 const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
                 const productNames = myItems.map(item => {
                     const product = allProductsData.find(p => p.id === item.product_id);
@@ -303,10 +301,10 @@
                 });
                 const summaryText = `${res.user_name} (${res.department}): ${productNames.join(', ')}`;
 
-                // ステータスに応じた色分け
-                let bgColor = '#206c8c'; // 予約中
-                if (res.status === '貸出済') bgColor = '#16a34a';
-                if (res.status === '返却済') bgColor = '#64748b';
+                // ステータスに応じた色分け（貸出済を水色に変更）
+                let bgColor = '#206c8c'; // 予約中（青系）
+                if (res.status === '貸出済') bgColor = '#0284c7'; // 貸出済（水色）
+                if (res.status === '返却済') bgColor = '#64748b'; // 返却済（グレー系）
 
                 events.push({
                     title: summaryText,
