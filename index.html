@@ -70,8 +70,8 @@
             <a href="others.html" class="category-card">その他</a>
         </div>
 
-        <!-- 画面中央下の管理者画面ボタン -->
-        <a href="admin.html" class="admin-link">管理者画面へ</a>
+        <!-- 画面中央下の管理者画面ボタン（クリック時に予約一覧タブを指定して開く） -->
+        <a href="admin.html" class="admin-link" onclick="goToAdmin(event)">管理者画面へ</a>
     </div>
 
     <!-- ポップアップ（モーダル）本体 -->
@@ -99,6 +99,13 @@
                 cartBtn.innerHTML = `🛒 カート <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.4rem; border-radius: 1rem; font-size: 0.8rem;">${cart.length}</span>`;
             }
         });
+
+        // 管理者画面へ進む際、強制的に「予約一覧タブ（reservations）」を指定して移動する
+        function goToAdmin(event) {
+            event.preventDefault();
+            localStorage.setItem('admin_active_tab', 'reservations');
+            window.location.href = "admin.html";
+        }
 
         function openNoticeModal() {
             document.getElementById('notice-modal').classList.add('active');
