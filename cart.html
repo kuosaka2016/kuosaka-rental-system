@@ -42,19 +42,19 @@
         <h1>レンタル予約カート</h1>
 
         <div class="cart-card" id="cart-content-area">
-            <!-- カートの中身がここに動的に表示されます -->
+            <!-- カートの中身 -->
         </div>
 
         <div class="form-section" id="form-area" style="display: none;">
             <h2>申込者情報の入力</h2>
             <form id="reservation-form">
                 <div class="form-group">
-                    <label for="user-name">お名前（フルネーム）</label>
-                    <input type="text" id="user-name" required placeholder="例: 山田 太郎">
+                    <label for="department">所属・部署</label>
+                    <input type="text" id="department" required placeholder="例: 営業部">
                 </div>
                 <div class="form-group">
-                    <label for="department">所属部署</label>
-                    <input type="text" id="department" required placeholder="例: 営業部">
+                    <label for="user-name">氏名</label>
+                    <input type="text" id="user-name" required placeholder="例: 山田 太郎">
                 </div>
                 <div class="form-group">
                     <label for="email">メールアドレス</label>
@@ -71,10 +71,8 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         window.addEventListener('DOMContentLoaded', () => {
-            // 「戻る」ボタンのリンク先を直前のカテゴリページに設定（なければ index.html）
             const lastPage = localStorage.getItem('last_category_page') || 'index.html';
             document.getElementById('back-to-category').href = lastPage;
-
             renderCart();
         });
 
@@ -131,7 +129,6 @@
             renderCart();
         }
 
-        // 予約確定処理（完了画面へデータを引き継ぐように改良）
         document.getElementById('reservation-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -150,15 +147,12 @@
             submitBtn.innerText = "予約処理中...";
 
             try {
-                // 1. 各商品の在庫・空き状況を最終チェック＆個体割り当て
                 const { data: unitsData, error: unitErr } = await supabaseClient.from('product_units').select('*');
                 const { data: resData, error: resErr } = await supabaseClient.from('reservations').select('*').not('status', 'in', '("キャンセル","返却済")');
                 const { data: itemsData, error: itemsErr } = await supabaseClient.from('reservation_items').select('*');
 
                 if (unitErr || resErr || itemsErr) throw (unitErr || resErr || itemsErr);
 
-                // 2. メインの reservations テーブルに予約情報を登録
-                // （※最初の日付範囲を代表として保存）
                 const representativeStart = cart[0].startDate;
                 const representativeEnd = cart[0].endDate;
 
@@ -178,7 +172,6 @@
                 if (insertResError) throw insertResError;
                 const reservationId = insertedRes.id;
 
-                // 3. 各カートアイテムごとに reservation_items を登録（個体管理・数量管理の自動振り分け）
                 for (const cartItem of cart) {
                     const prodId = cartItem.id;
                     const reqQty = cartItem.quantity;
@@ -188,7 +181,6 @@
                     const prodUnits = unitsData.filter(u => u.product_id === prodId);
 
                     if (prodUnits.length > 0) {
-                        // 個体管理商品の場合：空いている個体を必要数分だけ自動割り当て
                         const conflictingResIds = resData.filter(r => !(r.end_date < startDate || r.start_date > endDate)).map(r => r.id);
                         const bookedUnitIds = itemsData.filter(i => conflictingResIds.includes(i.reservation_id)).map(i => i.unit_id);
                         const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
@@ -210,7 +202,6 @@
                             if (itemInsertErr) throw itemInsertErr;
                         }
                     } else {
-                        // 数量管理商品の場合
                         const { error: itemInsertErr } = await supabaseClient
                             .from('reservation_items')
                             .insert([{
@@ -223,7 +214,7 @@
                     }
                 }
 
-                // 4. 完了画面用に直前の予約詳細データを一時保存
+                // 完了画面へ引き継ぐデータを保存
                 const reservationDetail = {
                     userName,
                     department,
@@ -232,10 +223,10 @@
                 };
                 localStorage.setItem('last_reservation_detail', JSON.stringify(reservationDetail));
 
-                // 5. カートを空にする
+                // カートを空にする
                 localStorage.removeItem('rental_cart');
 
-                // 6. 完了画面へジャンプ！
+                // アラートを出さずに、そのまま complete.html へ強制的に画面遷移させる
                 window.location.href = "complete.html";
 
             } catch (err) {
