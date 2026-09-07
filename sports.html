@@ -226,7 +226,7 @@
             const cartBtn = document.getElementById('cart-nav-btn');
             cartBtn.innerHTML = `🛒 カート <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.4rem; border-radius: 1rem; font-size: 0.8rem;">${cart.length}</span>`;
 
-            // ポップアップを出さず、ボタンの見た目を一時的に変更して通知
+            // ポップアップを完全削除し、ボタンの見た目を「追加しました！」に変更
             const originalText = btnElement.innerText;
             btnElement.innerText = "追加しました！";
             btnElement.style.backgroundColor = "#16a34a";
