@@ -24,26 +24,26 @@
         .reservation-card.cancelled { border-left-color: #cbd5e1; opacity: 0.7; }
         
         .res-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.8rem; margin-bottom: 1rem; }
-        .res-id { font-weight: bold; color: #555; }
+        .res-id { font-weight: bold; color: #555; font-size: 0.85rem; }
         .res-status { padding: 0.2rem 0.8rem; border-radius: 1rem; font-size: 0.85rem; font-weight: bold; background-color: #e6f2f5; color: #206c8c; }
         .reservation-card.cancelled .res-status { background-color: #f1f5f9; color: #64748b; }
 
         .res-body p { margin: 0.4rem 0; font-size: 0.95rem; }
         
         .btn-group { display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap; }
-        .action-btn { border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: background-color 0.2s; }
+        .action-btn { border: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 0.9rem; transition: background-color 0.2s; }
         .edit-btn { background-color: #e0f2fe; color: #0369a1; }
         .edit-btn:hover { background-color: #bae6fd; }
         .cancel-btn { background-color: #fee2e2; color: #991b1b; }
         .cancel-btn:hover { background-color: #fecaca; }
 
-        /* 期間変更フォーム（初期非表示） */
-        .edit-form-area { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.8rem; padding: 1rem; margin-top: 1rem; display: none; }
+        /* 期間変更フォーム */
+        .edit-form-area { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.8rem; padding: 1.2rem; margin-top: 1rem; display: none; }
         .edit-form-area.active { display: block; }
-        .edit-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; }
-        .edit-row label { font-size: 0.85rem; font-weight: bold; color: #555; }
-        .edit-row input { padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; }
-        .save-edit-btn { background-color: #0284c7; color: white; border: none; padding: 0.4rem 1rem; border-radius: 0.4rem; font-weight: bold; cursor: pointer; }
+        .edit-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+        .edit-row label { font-size: 0.85rem; font-weight: bold; color: #555; display: block; margin-bottom: 0.3rem; }
+        .edit-row input { padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.4rem; font-family: inherit; font-size: 0.95rem; }
+        .save-edit-btn { background-color: #0284c7; color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
         .save-edit-btn:hover { background-color: #0369a1; }
 
         .no-result { text-align: center; color: #666; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -127,7 +127,7 @@
                         </div>
                         <div class="res-body">
                             <p><strong>申込者:</strong> ${res.user_name} （${res.department}）</p>
-                            <p><strong>現在のレンタル期間:</strong> <span id="period-text-${res.id}">${res.start_date} 〜 ${res.end_date}</span></p>
+                            <p><strong>レンタル期間:</strong> ${res.start_date} 〜 ${res.end_date}</p>
                             <p><strong>予約商品:</strong></p>
                             ${itemsHtml}
                             
@@ -140,11 +140,11 @@
                                 <div class="edit-form-area" id="edit-form-${res.id}">
                                     <div class="edit-row">
                                         <div>
-                                            <label>新しい開始日</label><br>
+                                            <label>新しい開始日</label>
                                             <input type="date" id="new-start-${res.id}" value="${res.start_date}">
                                         </div>
                                         <div>
-                                            <label>新しい終了日</label><br>
+                                            <label>新しい終了日</label>
                                             <input type="date" id="new-end-${res.id}" value="${res.end_date}">
                                         </div>
                                     </div>
@@ -237,7 +237,7 @@
                 if (updateErr) throw updateErr;
 
                 alert("レンタル期間を変更しました！");
-                searchReservations(); // 再検索して画面を最新に更新
+                searchReservations();
 
             } catch (err) {
                 console.error(err);
