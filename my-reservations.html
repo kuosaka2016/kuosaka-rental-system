@@ -86,14 +86,14 @@
         </div>
     </div>
 
-    <!-- カスタム確認モーダル（「いいえ」を左、「実行する/キャンセルする」を右に配置） -->
+    <!-- カスタム確認モーダル（「キャンセルする」を左、「いいえ」を右に配置） -->
     <div class="modal-overlay" id="custom-confirm-modal">
         <div class="modal-content">
             <h3 id="modal-title">確認</h3>
             <p id="modal-message">本当に実行しますか？</p>
             <div class="modal-btn-group">
-                <button class="modal-cancel-btn" onclick="closeCustomConfirm(false)">いいえ</button>
                 <button class="modal-confirm-btn" id="modal-submit-btn" onclick="closeCustomConfirm(true)">実行する</button>
+                <button class="modal-cancel-btn" onclick="closeCustomConfirm(false)">いいえ</button>
             </div>
         </div>
     </div>
