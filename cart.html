@@ -76,6 +76,33 @@
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function escapeJsSingleQuoted(value) {
+            return String(value ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
+        function safeImageUrl(value) {
+            if (!value) return '';
+            try {
+                const url = new URL(String(value), window.location.href);
+                return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : '';
+            } catch {
+                return '';
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             const lastPage = localStorage.getItem('last_category_page') || 'index.html';
             document.getElementById('back-to-category').href = lastPage;
@@ -120,9 +147,9 @@
             cart.forEach((item, index) => {
                 html += `
                     <tr>
-                        <td><strong>${item.name}</strong></td>
-                        <td>${item.startDate} 〜 ${item.endDate}</td>
-                        <td>${item.quantity} 個</td>
+                        <td><strong>${escapeHtml(item.name)}</strong></td>
+                        <td>${escapeHtml(item.startDate)} 〜 ${escapeHtml(item.endDate)}</td>
+                        <td>${Number(item.quantity) || 0} 個</td>
                         <td><button class="delete-item-btn" onclick="removeItem(${index})">削除</button></td>
                     </tr>
                 `;

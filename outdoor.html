@@ -80,6 +80,33 @@
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function escapeJsSingleQuoted(value) {
+            return String(value ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
+        function safeImageUrl(value) {
+            if (!value) return '';
+            try {
+                const url = new URL(String(value), window.location.href);
+                return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : '';
+            } catch {
+                return '';
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('last_category_page', 'outdoor.html');
 
@@ -203,7 +230,10 @@
                         availableCount = Math.max(0, totalStock - bookedQty);
                     }
 
-                    const imageHtml = product.image_url ? `<img src="${product.image_url}" alt="${product.name}">` : '<span>写真</span>';
+                    const safeImage = safeImageUrl(product.image_url);
+                    const safeProductName = escapeHtml(product.name);
+                    const safeProductId = escapeJsSingleQuoted(product.id);
+                    const imageHtml = safeImage ? `<img src="${escapeHtml(safeImage)}" alt="${safeProductName}">` : '<span>写真</span>';
 
                     let actionHtml = '';
                     if (availableCount > 0) {
@@ -213,7 +243,7 @@
                                 <span class="qty-display">1</span>
                                 <button class="qty-btn" onclick="updateQty(this, 1, ${availableCount})">+</button>
                             </div>
-                            <button class="reserve-button" onclick="addToCart(this, '${product.id}', '${product.name}')">カートに追加</button>
+                            <button class="reserve-button" onclick="addToCart(this, '${safeProductId}')">カートに追加</button>
                         `;
                     } else {
                         actionHtml = `
@@ -224,7 +254,7 @@
 
                     card.innerHTML = `
                         <div class="product-image-container">${imageHtml}</div>
-                        <h2 class="product-name">${product.name}</h2>
+                        <h2 class="product-name">${safeProductName}</h2>
                         <div class="stock-info">選択期間の空き状況: ${availableCount} 個</div>
                         ${actionHtml}
                     `;
@@ -232,7 +262,7 @@
                 });
             } catch (err) {
                 console.error(err);
-                grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>${err.message}</p>`;
+                grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>${escapeHtml(err.message)}</p>`;
             }
         }
 
@@ -245,7 +275,7 @@
             displayElement.innerText = newQty;
         }
 
-        function addToCart(btnElement, productId, productName) {
+        function addToCart(btnElement, productId) {
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
 
@@ -255,6 +285,7 @@
             }
 
             const cardElement = btnElement.parentElement;
+            const productName = cardElement.querySelector('.product-name').textContent;
             const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
 

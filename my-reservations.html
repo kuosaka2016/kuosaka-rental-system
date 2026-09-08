@@ -101,6 +101,33 @@
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function escapeJsSingleQuoted(value) {
+            return String(value ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
+        function safeImageUrl(value) {
+            if (!value) return '';
+            try {
+                const url = new URL(String(value), window.location.href);
+                return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : '';
+            } catch {
+                return '';
+            }
+        }
+
         let confirmCallback = null;
 
         function showCustomConfirm(title, message, confirmText = "削除する") {
@@ -160,6 +187,7 @@
                 container.innerHTML = '';
                 reservations.forEach(res => {
                     const isYoyaku = res.status === '予約中';
+                    const safeResId = escapeJsSingleQuoted(res.id);
                     const card = document.createElement('div');
                     card.className = 'reservation-card';
 
@@ -167,39 +195,39 @@
                     let itemsHtml = '<ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">';
                     resItems.forEach(i => {
                         const prodName = i.products ? i.products.name : '商品';
-                        itemsHtml += `<li>${prodName} （${i.quantity}個）</li>`;
+                        itemsHtml += `<li>${escapeHtml(prodName)} （${Number(i.quantity) || 0}個）</li>`;
                     });
                     itemsHtml += '</ul>';
 
                     card.innerHTML = `
                         <div class="res-header">
-                            <span class="res-id">申込日時: ${new Date(res.created_at).toLocaleString('ja-JP')}</span>
-                            <span class="res-status">${res.status}</span>
+                            <span class="res-id">申込日時: ${escapeHtml(new Date(res.created_at).toLocaleString('ja-JP'))}</span>
+                            <span class="res-status">${escapeHtml(res.status)}</span>
                         </div>
                         <div class="res-body">
-                            <p><strong>申込者:</strong> ${res.user_name} （${res.department}）</p>
-                            <p><strong>レンタル期間:</strong> ${res.start_date} 〜 ${res.end_date}</p>
+                            <p><strong>申込者:</strong> ${escapeHtml(res.user_name)} （${escapeHtml(res.department)}）</p>
+                            <p><strong>レンタル期間:</strong> ${escapeHtml(res.start_date)} 〜 ${escapeHtml(res.end_date)}</p>
                             <p><strong>予約商品:</strong></p>
                             ${itemsHtml}
                             
                             ${isYoyaku ? `
                                 <div class="btn-group">
-                                    <button class="action-btn edit-btn" onclick="toggleEditForm('${res.id}')">📅 期間を変更する</button>
-                                    <button class="action-btn cancel-btn" onclick="cancelReservation('${res.id}')">この予約をキャンセルする</button>
+                                    <button class="action-btn edit-btn" onclick="toggleEditForm('${safeResId}')">📅 期間を変更する</button>
+                                    <button class="action-btn cancel-btn" onclick="cancelReservation('${safeResId}')">この予約をキャンセルする</button>
                                 </div>
 
-                                <div class="edit-form-area" id="edit-form-${res.id}">
+                                <div class="edit-form-area" id="edit-form-${escapeHtml(res.id)}">
                                     <div class="edit-row">
                                         <div>
                                             <label>新しい開始日</label>
-                                            <input type="date" id="new-start-${res.id}" value="${res.start_date}">
+                                            <input type="date" id="new-start-${escapeHtml(res.id)}" value="${escapeHtml(res.start_date)}">
                                         </div>
                                         <div>
                                             <label>新しい終了日</label>
-                                            <input type="date" id="new-end-${res.id}" value="${res.end_date}">
+                                            <input type="date" id="new-end-${escapeHtml(res.id)}" value="${escapeHtml(res.end_date)}">
                                         </div>
                                     </div>
-                                    <button class="save-edit-btn" onclick="updateReservationPeriod('${res.id}')">変更を確定する</button>
+                                    <button class="save-edit-btn" onclick="updateReservationPeriod('${safeResId}')">変更を確定する</button>
                                 </div>
                             ` : ''}
                         </div>

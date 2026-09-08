@@ -232,6 +232,33 @@
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function escapeJsSingleQuoted(value) {
+            return String(value ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
+        function safeImageUrl(value) {
+            if (!value) return '';
+            try {
+                const url = new URL(String(value), window.location.href);
+                return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : '';
+            } catch {
+                return '';
+            }
+        }
+
         let allReservationsData = [];
         let allResItemsData = [];
         let allProductsData = [];
@@ -332,7 +359,7 @@
                 updateCalendarEvents();
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
 
@@ -399,6 +426,13 @@
                 const tr = document.createElement('tr');
                 const createdAt = res.created_at ? new Date(res.created_at).toLocaleString('ja-JP') : '不明';
                 const currentStatus = res.status || '予約中';
+                const safeResId = escapeJsSingleQuoted(res.id);
+                const safeDepartment = escapeHtml(res.department);
+                const safeUserName = escapeHtml(res.user_name);
+                const safeStartDate = escapeHtml(res.start_date);
+                const safeEndDate = escapeHtml(res.end_date);
+                const safeEmail = escapeHtml(res.email);
+                const safeEmailHref = encodeURIComponent(String(res.email || '').trim());
                 const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
                 
                 // この予約期間と被る他の有効な予約ID（キャンセル・返却済以外、自予約は除く）
@@ -411,6 +445,8 @@
                 myItems.forEach(item => {
                     const product = allProductsData.find(p => p.id === item.product_id);
                     const productName = product ? product.name : '不明な商品';
+                    const safeProductName = escapeHtml(productName);
+                    const safeItemId = escapeJsSingleQuoted(item.id);
                     const prodUnits = allUnitsData.filter(u => u.product_id === item.product_id);
 
                     if (prodUnits.length > 0) {
@@ -420,42 +456,42 @@
                             const isCurrent = item.unit_id === u.id;
                             if (!isBooked || isCurrent) {
                                 const selected = isCurrent ? 'selected' : '';
-                                unitOptions += `<option value="${u.id}" ${selected}>${u.unit_number}</option>`;
+                                unitOptions += `<option value="${u.id}" ${selected}>${escapeHtml(u.unit_number)}</option>`;
                             }
                         });
 
                         itemsHtml += `
                             <li>
-                                <strong>${productName}</strong>
+                                <strong>${safeProductName}</strong>
                                 <div class="item-unit-assign">
-                                    <select id="unit-select-${item.id}" class="unit-select">
+                                    <select id="unit-select-${escapeHtml(item.id)}" class="unit-select">
                                         ${unitOptions}
                                     </select>
-                                    <button class="unit-assign-btn" onclick="updateItemUnit(this, '${item.id}')">個体変更</button>
+                                    <button class="unit-assign-btn" onclick="updateItemUnit(this, '${safeItemId}')">個体変更</button>
                                 </div>
                             </li>
                         `;
                     } else {
-                        itemsHtml += `<li><strong>${productName}</strong> (${item.quantity}個)</li>`;
+                        itemsHtml += `<li><strong>${safeProductName}</strong> (${item.quantity}個)</li>`;
                     }
                 });
                 itemsHtml += '</ul>';
 
                 tr.innerHTML = `
                     <td style="font-size: 0.9rem; color: #666;">${createdAt}</td>
-                    <td>${res.department}</td>
-                    <td><strong>${res.user_name}</strong></td>
+                    <td>${safeDepartment}</td>
+                    <td><strong>${safeUserName}</strong></td>
                     <td>${itemsHtml || '商品データなし'}</td>
-                    <td>${res.start_date} <br>〜 ${res.end_date}</td>
-                    <td><a href="mailto:${res.email}" style="font-size: 0.9rem;">${res.email}</a></td>
+                    <td>${safeStartDate} <br>〜 ${safeEndDate}</td>
+                    <td><a href="mailto:${safeEmailHref}" style="font-size: 0.9rem;">${safeEmail}</a></td>
                     <td>
-                        <select onchange="updateStatus('${res.id}', this.value)" class="${getStatusClass(currentStatus)}">
+                        <select onchange="updateStatus('${safeResId}', this.value)" class="${getStatusClass(currentStatus)}">
                             <option value="予約中" ${currentStatus === '予約中' ? 'selected' : ''}>予約中</option>
                             <option value="貸出中" ${currentStatus === '貸出中' ? 'selected' : ''}>貸出中</option>
                             <option value="返却済" ${currentStatus === '返却済' ? 'selected' : ''}>返却済</option>
                             <option value="キャンセル" ${currentStatus === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
                         </select>
-                        <button onclick="deleteReservation('${res.id}')" class="delete-btn">予約を削除</button>
+                        <button onclick="deleteReservation('${safeResId}')" class="delete-btn">予約を削除</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -512,7 +548,7 @@
                 renderProductList();
             } catch (err) {
                 console.error(err);
-                document.getElementById('product-list').innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${err.message}</td></tr>`;
+                document.getElementById('product-list').innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">エラーが発生しました: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
 
@@ -538,7 +574,12 @@
             tbody.innerHTML = '';
             filteredProducts.forEach(prod => {
                 const tr = document.createElement('tr');
-                const imgHtml = prod.image_url ? `<img src="${prod.image_url}" class="product-thumbnail" alt="商品画像">` : '<span style="font-size:0.8rem; color:#999; display:block; margin-bottom:0.3rem;">画像なし</span>';
+                const safeImage = safeImageUrl(prod.image_url);
+                const safeProdId = escapeJsSingleQuoted(prod.id);
+                const safeProdName = escapeHtml(prod.name);
+                const safeProdCategory = escapeHtml(prod.category);
+                const safeImageAttr = escapeHtml(safeImage);
+                const imgHtml = safeImage ? `<img src="${safeImageAttr}" class="product-thumbnail" alt="商品画像">` : '<span style="font-size:0.8rem; color:#999; display:block; margin-bottom:0.3rem;">画像なし</span>';
                 const prodUnits = allUnitsData.filter(u => u.product_id === prod.id);
                 const unitNumbersStr = prodUnits.map(u => u.unit_number).join(', ');
                 const isActive = prod.is_active !== false;
@@ -548,7 +589,7 @@
                         ${imgHtml}
                         <input type="file" id="image-file-${prod.id}" accept="image/*" style="font-size: 0.75rem; width: 130px;">
                     </td>
-                    <td><input type="text" id="name-${prod.id}" value="${prod.name}" class="table-input"></td>
+                    <td><input type="text" id="name-${prod.id}" value="${safeProdName}" class="table-input"></td>
                     <td>
                         <select id="cat-${prod.id}" class="table-select">
                             <option value="スポーツ" ${prod.category === 'スポーツ' ? 'selected' : ''}>スポーツ</option>
@@ -564,11 +605,11 @@
                             <option value="false" ${!isActive ? 'selected' : ''}>🔴 非表示（修理中等）</option>
                         </select>
                     </td>
-                    <td><input type="text" id="units-${prod.id}" value="${unitNumbersStr}" class="table-input" placeholder="例: No.1, No.2"></td>
+                    <td><input type="text" id="units-${prod.id}" value="${escapeHtml(unitNumbersStr)}" class="table-input" placeholder="例: No.1, No.2"></td>
                     <td>
                         <div class="action-btns">
-                            <button onclick="saveProduct(this, '${prod.id}', '${prod.image_url || ''}')" class="save-btn">変更を保存</button>
-                            <button onclick="deleteProduct('${prod.id}')" class="delete-btn">削除</button>
+                            <button data-current-image-url="${safeImageAttr}" onclick="saveProduct(this, '${safeProdId}', this.dataset.currentImageUrl)" class="save-btn">変更を保存</button>
+                            <button onclick="deleteProduct('${safeProdId}')" class="delete-btn">削除</button>
                         </div>
                     </td>
                 `;
