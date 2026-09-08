@@ -49,14 +49,19 @@
         .status-henkyaku { background-color: #e0e0e0; }
         
         .item-list { margin: 0; padding-left: 1.2rem; font-size: 0.9rem; }
-        .item-list li { margin-bottom: 0.4rem; }
-        .unit-number { color: #206c8c; font-weight: bold; font-size: 0.85rem; background-color: #e6f2f5; padding: 0.1rem 0.4rem; border-radius: 0.3rem; display: inline-block; margin-top: 0.1rem; }
+        .item-list li { margin-bottom: 0.6rem; }
+        
+        /* 予約一覧での個体選択エリアのスタイル */
+        .item-unit-assign { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; flex-wrap: wrap; }
+        .unit-select { padding: 0.3rem; font-size: 0.85rem; border: 1px solid #ccc; border-radius: 0.3rem; background: #fff; }
+        .unit-assign-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.25rem 0.6rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+        .unit-assign-btn:hover { background-color: #bae6fd; }
 
         .table-input { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; }
         .table-select { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; background-color: white; cursor: pointer; }
 
         .action-btns { display: flex; gap: 0.5rem; }
-        .save-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .save-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         .save-btn:hover { background-color: #bae6fd; }
 
         .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
@@ -126,7 +131,7 @@
                             <th>申込日時</th>
                             <th>所属</th>
                             <th>氏名</th>
-                            <th>予約商品 ＆ 個体番号</th>
+                            <th>予約商品 ＆ 個体番号割当</th>
                             <th>レンタル期間</th>
                             <th>メールアドレス</th>
                             <th>ステータス / 操作</th>
@@ -396,31 +401,54 @@
                 const currentStatus = res.status || '予約中';
                 const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
                 
-                const productMap = {};
+                // この予約期間と被る他の有効な予約ID（キャンセル・返却済以外、自予約は除く）
+                const conflictingResIds = allReservationsData.filter(r => r.id !== res.id && r.status !== 'キャンセル' && r.status !== '返却済' && !(r.end_date < res.start_date || r.start_date > res.end_date)).map(r => r.id);
+                // その期間に既に予約・貸出されているunit_idのリスト
+                const bookedUnitIds = allResItemsData.filter(i => conflictingResIds.includes(i.reservation_id) && i.unit_id).map(i => i.unit_id);
+
+                // reservation_itemsごとにHTMLを生成する
+                let itemsHtml = '<ul class="item-list">';
                 myItems.forEach(item => {
-                    const prodId = item.product_id;
-                    if (!productMap[prodId]) {
-                        productMap[prodId] = { productId: prodId, totalQty: 0, unitNumbers: [] };
-                    }
-                    productMap[prodId].totalQty += item.quantity;
-                    if (item.unit_id) {
-                        const unit = allUnitsData.find(u => u.id === item.unit_id);
-                        if (unit && unit.unit_number) productMap[prodId].unitNumbers.push(unit.unit_number);
+                    const product = allProductsData.find(p => p.id === item.product_id);
+                    const productName = product ? product.name : '不明な商品';
+                    const prodUnits = allUnitsData.filter(u => u.product_id === item.product_id);
+
+                    if (prodUnits.length > 0) {
+                        // 個体管理ありの場合：セレクトボックスで個体番号を変更できるようにする
+                        let unitOptions = `<option value="">-- 個体を選択 --</option>`;
+                        prodUnits.forEach(u => {
+                            // 別の予約で埋まっているか、あるいはこのアイテム自身に割り当てられている個体
+                            const isBooked = bookedUnitIds.includes(u.id);
+                            const isCurrent = item.unit_id === u.id;
+                            if (!isBooked || isCurrent) {
+                                const selected = isCurrent ? 'selected' : '';
+                                unitOptions += `<option value="${u.id}" ${selected}>${u.unit_number}</option>`;
+                            }
+                        });
+
+                        itemsHtml += `
+                            <li>
+                                <strong>${productName}</strong>
+                                <div class="item-unit-assign">
+                                    <select id="unit-select-${item.id}" class="unit-select">
+                                        ${unitOptions}
+                                    </select>
+                                    <button class="unit-assign-btn" onclick="updateItemUnit('${item.id}')">個体変更</button>
+                                </div>
+                            </li>
+                        `;
+                    } else {
+                        // 数量管理のみの場合
+                        itemsHtml += `<li><strong>${productName}</strong> (${item.quantity}個)</li>`;
                     }
                 });
-
-                const itemsHtml = Object.values(productMap).map(group => {
-                    const product = allProductsData.find(p => p.id === group.productId);
-                    const productName = product ? product.name : '不明な商品';
-                    const unitStr = group.unitNumbers.length > 0 ? `<br><span class="unit-number">個体: ${group.unitNumbers.join(', ')}</span>` : '';
-                    return `<li>${productName} (${group.totalQty}個)${unitStr}</li>`;
-                }).join('');
+                itemsHtml += '</ul>';
 
                 tr.innerHTML = `
                     <td style="font-size: 0.9rem; color: #666;">${createdAt}</td>
                     <td>${res.department}</td>
                     <td><strong>${res.user_name}</strong></td>
-                    <td><ul class="item-list">${itemsHtml || '<li>商品データなし</li>'}</ul></td>
+                    <td>${itemsHtml || '商品データなし'}</td>
                     <td>${res.start_date} <br>〜 ${res.end_date}</td>
                     <td><a href="mailto:${res.email}" style="font-size: 0.9rem;">${res.email}</a></td>
                     <td>
@@ -435,6 +463,27 @@
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // 管理者が予約アイテムの個体番号を変更する処理
+        async function updateItemUnit(itemId) {
+            const selectEl = document.getElementById(`unit-select-${itemId}`);
+            const newUnitId = selectEl.value ? parseInt(selectEl.value, 10) : null;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('reservation_items')
+                    .update({ unit_id: newUnitId })
+                    .eq('id', itemId);
+
+                if (error) throw error;
+                alert("個体番号を変更しました！");
+                loadReservations();
+            } catch (err) {
+                console.error(err);
+                alert("個体番号の変更に失敗しました。\n" + err.message);
+                loadReservations();
+            }
         }
 
         async function loadProducts() {
