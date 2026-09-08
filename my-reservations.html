@@ -141,8 +141,8 @@
 
                 if (resError) throw resError;
 
-                // JavaScript側で「予約中」のステータスだけを完全にフィルタリング
-                const reservations = rawData ? rawData.filter(r => r.status === '予約中') : [];
+                // 「予約中」または「貸出中」のステータスだけを表示するようにフィルタリング
+                const reservations = rawData ? rawData.filter(r => r.status === '予約中' || r.status === '貸出中') : [];
 
                 if (!reservations || reservations.length === 0) {
                     container.innerHTML = '<div class="no-result">有効な予約は見つかりませんでした。</div>';
@@ -159,6 +159,7 @@
 
                 container.innerHTML = '';
                 reservations.forEach(res => {
+                    const isYoyaku = res.status === '予約中';
                     const card = document.createElement('div');
                     card.className = 'reservation-card';
 
@@ -181,24 +182,26 @@
                             <p><strong>予約商品:</strong></p>
                             ${itemsHtml}
                             
-                            <div class="btn-group">
-                                <button class="action-btn edit-btn" onclick="toggleEditForm('${res.id}')">📅 期間を変更する</button>
-                                <button class="action-btn cancel-btn" onclick="cancelReservation('${res.id}')">この予約をキャンセルする</button>
-                            </div>
-
-                            <div class="edit-form-area" id="edit-form-${res.id}">
-                                <div class="edit-row">
-                                    <div>
-                                        <label>新しい開始日</label>
-                                        <input type="date" id="new-start-${res.id}" value="${res.start_date}">
-                                    </div>
-                                    <div>
-                                        <label>新しい終了日</label>
-                                        <input type="date" id="new-end-${res.id}" value="${res.end_date}">
-                                    </div>
+                            ${isYoyaku ? `
+                                <div class="btn-group">
+                                    <button class="action-btn edit-btn" onclick="toggleEditForm('${res.id}')">📅 期間を変更する</button>
+                                    <button class="action-btn cancel-btn" onclick="cancelReservation('${res.id}')">この予約をキャンセルする</button>
                                 </div>
-                                <button class="save-edit-btn" onclick="updateReservationPeriod('${res.id}')">変更を確定する</button>
-                            </div>
+
+                                <div class="edit-form-area" id="edit-form-${res.id}">
+                                    <div class="edit-row">
+                                        <div>
+                                            <label>新しい開始日</label>
+                                            <input type="date" id="new-start-${res.id}" value="${res.start_date}">
+                                        </div>
+                                        <div>
+                                            <label>新しい終了日</label>
+                                            <input type="date" id="new-end-${res.id}" value="${res.end_date}">
+                                        </div>
+                                    </div>
+                                    <button class="save-edit-btn" onclick="updateReservationPeriod('${res.id}')">変更を確定する</button>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                     container.appendChild(card);
