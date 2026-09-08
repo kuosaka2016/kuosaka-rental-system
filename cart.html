@@ -163,79 +163,25 @@
             submitBtn.innerText = "予約処理中...";
 
             try {
-                const { data: unitsData, error: unitErr } = await supabaseClient.from('product_units').select('*');
-                const { data: resData, error: resErr } = await supabaseClient.from('reservations').select('*').not('status', 'in', '("キャンセル","返却済")');
-                const { data: itemsData, error: itemsErr } = await supabaseClient.from('reservation_items').select('*');
+                // 在庫確認・予約作成・個体割当をSupabase側の1トランザクションで実行する。
+                // DB関数内で同時予約も直列化するため、ブラウザ側での二重確保を防ぐ。
+                const { data, error } = await supabaseClient.rpc('create_rental_reservation', {
+                    p_user_name: userName,
+                    p_department: department,
+                    p_email: email,
+                    p_cart: cart
+                });
 
-                if (unitErr || resErr || itemsErr) throw (unitErr || resErr || itemsErr);
-
-                const representativeStart = cart[0].startDate;
-                const representativeEnd = cart[0].endDate;
-
-                const { data: insertedRes, error: insertResError } = await supabaseClient
-                    .from('reservations')
-                    .insert([{
-                        user_name: userName,
-                        department: department,
-                        email: email,
-                        start_date: representativeStart,
-                        end_date: representativeEnd,
-                        status: '予約中'
-                    }])
-                    .select()
-                    .single();
-
-                if (insertResError) throw insertResError;
-                const reservationId = insertedRes.id;
-
-                for (const cartItem of cart) {
-                    const prodId = cartItem.id;
-                    const reqQty = cartItem.quantity;
-                    const startDate = cartItem.startDate;
-                    const endDate = cartItem.endDate;
-
-                    const prodUnits = unitsData.filter(u => u.product_id === prodId);
-
-                    if (prodUnits.length > 0) {
-                        const conflictingResIds = resData.filter(r => !(r.end_date < startDate || r.start_date > endDate)).map(r => r.id);
-                        const bookedUnitIds = itemsData.filter(i => conflictingResIds.includes(i.reservation_id)).map(i => i.unit_id);
-                        const availableUnits = prodUnits.filter(u => !bookedUnitIds.includes(u.id));
-
-                        if (availableUnits.length < reqQty) {
-                            throw new Error(`「${cartItem.name}」の選択期間中の個体が不足しています。`);
-                        }
-
-                        for (let i = 0; i < reqQty; i++) {
-                            const unitToAssign = availableUnits[i];
-                            const { error: itemInsertErr } = await supabaseClient
-                                .from('reservation_items')
-                                .insert([{
-                                    reservation_id: reservationId,
-                                    product_id: prodId,
-                                    unit_id: unitToAssign.id,
-                                    quantity: 1
-                                }]);
-                            if (itemInsertErr) throw itemInsertErr;
-                        }
-                    } else {
-                        const { error: itemInsertErr } = await supabaseClient
-                            .from('reservation_items')
-                            .insert([{
-                                reservation_id: reservationId,
-                                product_id: prodId,
-                                unit_id: null,
-                                quantity: reqQty
-                            }]);
-                        if (itemInsertErr) throw itemInsertErr;
-                    }
-                }
+                if (error) throw error;
 
                 const reservationDetail = {
+                    reservationId: data?.reservation_id || null,
                     userName,
                     department,
                     email,
                     items: cart
                 };
+
                 localStorage.setItem('last_reservation_detail', JSON.stringify(reservationDetail));
                 localStorage.removeItem('rental_cart');
 
@@ -243,7 +189,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert("予約の確定に失敗しました。\n" + err.message);
+                alert("予約の確定に失敗しました。\n" + (err.message || "不明なエラーが発生しました。"));
                 submitBtn.disabled = false;
                 submitBtn.innerText = "予約を確定する";
             }
