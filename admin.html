@@ -414,10 +414,9 @@
                     const prodUnits = allUnitsData.filter(u => u.product_id === item.product_id);
 
                     if (prodUnits.length > 0) {
-                        // 個体管理ありの場合：セレクトボックスで個体番号を変更できるようにする
+                        // 個体管理ありの場合：セレクトボックスのvalueに UUIDである u.id を設定
                         let unitOptions = `<option value="">-- 個体を選択 --</option>`;
                         prodUnits.forEach(u => {
-                            // 別の予約で埋まっているか、あるいはこのアイテム自身に割り当てられている個体
                             const isBooked = bookedUnitIds.includes(u.id);
                             const isCurrent = item.unit_id === u.id;
                             if (!isBooked || isCurrent) {
@@ -465,10 +464,10 @@
             });
         }
 
-        // 管理者が予約アイテムの個体番号を変更する処理
+        // 管理者が予約アイテムの個体番号を変更する処理（UUIDを正しく渡す）
         async function updateItemUnit(itemId) {
             const selectEl = document.getElementById(`unit-select-${itemId}`);
-            const newUnitId = selectEl.value ? parseInt(selectEl.value, 10) : null;
+            const newUnitId = selectEl.value ? selectEl.value : null; // UUID文字列そのまま、またはnull
 
             try {
                 const { error } = await supabaseClient
