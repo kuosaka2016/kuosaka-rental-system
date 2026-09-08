@@ -327,7 +327,7 @@
 
                 if (error) throw error;
 
-                alert("予約をキャンセルしました。");
+                // 完了時のポップアップ（alert）を削除し、そのまま再検索して画面を更新
                 searchReservations();
             } catch (err) {
                 console.error(err);
