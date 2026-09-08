@@ -109,6 +109,7 @@
                 container.innerHTML = '';
                 reservations.forEach(res => {
                     const isCancelled = res.status === 'キャンセル';
+                    const isYoyaku = res.status === '予約中'; // ステータスが「予約中」かどうか
                     const card = document.createElement('div');
                     card.className = `reservation-card ${isCancelled ? 'cancelled' : ''}`;
 
@@ -133,23 +134,25 @@
                             
                             ${!isCancelled ? `
                                 <div class="btn-group">
-                                    <button class="action-btn edit-btn" onclick="toggleEditForm('${res.id}')">📅 期間を変更する</button>
+                                    ${isYoyaku ? `<button class="action-btn edit-btn" onclick="toggleEditForm('${res.id}')">📅 期間を変更する</button>` : ''}
                                     <button class="action-btn cancel-btn" onclick="cancelReservation('${res.id}')">この予約をキャンセルする</button>
                                 </div>
 
-                                <div class="edit-form-area" id="edit-form-${res.id}">
-                                    <div class="edit-row">
-                                        <div>
-                                            <label>新しい開始日</label>
-                                            <input type="date" id="new-start-${res.id}" value="${res.start_date}">
+                                ${isYoyaku ? `
+                                    <div class="edit-form-area" id="edit-form-${res.id}">
+                                        <div class="edit-row">
+                                            <div>
+                                                <label>新しい開始日</label>
+                                                <input type="date" id="new-start-${res.id}" value="${res.start_date}">
+                                            </div>
+                                            <div>
+                                                <label>新しい終了日</label>
+                                                <input type="date" id="new-end-${res.id}" value="${res.end_date}">
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label>新しい終了日</label>
-                                            <input type="date" id="new-end-${res.id}" value="${res.end_date}">
-                                        </div>
+                                        <button class="save-edit-btn" onclick="updateReservationPeriod('${res.id}')">変更を確定する</button>
                                     </div>
-                                    <button class="save-edit-btn" onclick="updateReservationPeriod('${res.id}')">変更を確定する</button>
-                                </div>
+                                ` : ''}
                             ` : ''}
                         </div>
                     `;
@@ -183,6 +186,15 @@
             }
 
             try {
+                // 0. 再度ステータスが「予約中」であるかサーバー側でも念のため確認
+                const { data: currentRes, error: curErr } = await supabaseClient.from('reservations').select('status').eq('id', resId).single();
+                if (curErr) throw curErr;
+                if (currentRes.status !== '予約中') {
+                    alert("この予約はすでに「予約中」ではないため、期間を変更できません。");
+                    searchReservations();
+                    return;
+                }
+
                 // 1. この予約に含まれる商品と数量を取得
                 const { data: targetItems, error: tiErr } = await supabaseClient
                     .from('reservation_items')
