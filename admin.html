@@ -54,7 +54,7 @@
         /* 予約一覧での個体選択エリアのスタイル */
         .item-unit-assign { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; flex-wrap: wrap; }
         .unit-select { padding: 0.3rem; font-size: 0.85rem; border: 1px solid #ccc; border-radius: 0.3rem; background: #fff; }
-        .unit-assign-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.25rem 0.6rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+        .unit-assign-btn { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.25rem 0.6rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s ease; }
         .unit-assign-btn:hover { background-color: #bae6fd; }
 
         .table-input { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; }
@@ -414,7 +414,6 @@
                     const prodUnits = allUnitsData.filter(u => u.product_id === item.product_id);
 
                     if (prodUnits.length > 0) {
-                        // 個体管理ありの場合：セレクトボックスのvalueに UUIDである u.id を設定
                         let unitOptions = `<option value="">-- 個体を選択 --</option>`;
                         prodUnits.forEach(u => {
                             const isBooked = bookedUnitIds.includes(u.id);
@@ -432,12 +431,11 @@
                                     <select id="unit-select-${item.id}" class="unit-select">
                                         ${unitOptions}
                                     </select>
-                                    <button class="unit-assign-btn" onclick="updateItemUnit('${item.id}')">個体変更</button>
+                                    <button class="unit-assign-btn" onclick="updateItemUnit(this, '${item.id}')">個体変更</button>
                                 </div>
                             </li>
                         `;
                     } else {
-                        // 数量管理のみの場合
                         itemsHtml += `<li><strong>${productName}</strong> (${item.quantity}個)</li>`;
                     }
                 });
@@ -464,10 +462,10 @@
             });
         }
 
-        // 管理者が予約アイテムの個体番号を変更する処理（UUIDを正しく渡す）
-        async function updateItemUnit(itemId) {
+        // 管理者が予約アイテムの個体番号を変更する処理（ポップアップなし・ボタン変化アニメーション仕様）
+        async function updateItemUnit(btnElement, itemId) {
             const selectEl = document.getElementById(`unit-select-${itemId}`);
-            const newUnitId = selectEl.value ? selectEl.value : null; // UUID文字列そのまま、またはnull
+            const newUnitId = selectEl.value ? selectEl.value : null;
 
             try {
                 const { error } = await supabaseClient
@@ -476,8 +474,25 @@
                     .eq('id', itemId);
 
                 if (error) throw error;
-                alert("個体番号を変更しました！");
-                loadReservations();
+
+                // ボタンの見た目を「変更しました！」（緑色）に一時的に変化させる
+                const originalText = btnElement.innerText;
+                const originalBg = btnElement.style.backgroundColor;
+                const originalColor = btnElement.style.color;
+
+                btnElement.innerText = "変更しました！";
+                btnElement.style.backgroundColor = "#16a34a";
+                btnElement.style.color = "white";
+                btnElement.disabled = true;
+
+                setTimeout(() => {
+                    btnElement.innerText = originalText;
+                    btnElement.style.backgroundColor = originalBg;
+                    btnElement.style.color = originalColor;
+                    btnElement.disabled = false;
+                    loadReservations();
+                }, 1200);
+
             } catch (err) {
                 console.error(err);
                 alert("個体番号の変更に失敗しました。\n" + err.message);
@@ -631,7 +646,6 @@
                     }
                 }
 
-                // 保存成功時にボタンの見た目を一時的に変更して通知
                 const originalText = btnElement.innerText;
                 const originalBg = btnElement.style.backgroundColor;
                 const originalColor = btnElement.style.color;
