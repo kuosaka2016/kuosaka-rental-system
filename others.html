@@ -241,6 +241,21 @@
             const cardElement = btnElement.parentElement;
             const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
+
+            // カート内のレンタル期間はすべて同じ期間に固定する。
+            // すでに商品が入っている場合、異なる期間の商品は追加しない。
+            if (cart.length > 0) {
+                const cartStartDate = cart[0].startDate;
+                const cartEndDate = cart[0].endDate;
+                if (startDate !== cartStartDate || endDate !== cartEndDate) {
+                    alert(
+                        `現在のカートのレンタル期間は ${cartStartDate} 〜 ${cartEndDate} です。\n` +
+                        `別の期間で予約する場合は、現在の予約を完了するかカートを空にしてから追加してください。`
+                    );
+                    return;
+                }
+            }
+
             let existingItem = cart.find(item => item.id === productId && item.startDate === startDate && item.endDate === endDate);
 
             if (existingItem) {

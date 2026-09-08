@@ -158,6 +158,21 @@
                 return;
             }
 
+            // 念のため、過去のカートデータなどに異なる期間の商品が混在していないか確認する。
+            const cartStartDate = cart[0].startDate;
+            const cartEndDate = cart[0].endDate;
+            const hasMixedPeriods = cart.some(item =>
+                item.startDate !== cartStartDate || item.endDate !== cartEndDate
+            );
+
+            if (hasMixedPeriods) {
+                alert(
+                    "カート内に異なるレンタル期間の商品が含まれています。\n" +
+                    "お手数ですが、期間ごとに予約を分けてください。"
+                );
+                return;
+            }
+
             const submitBtn = document.getElementById('submit-btn');
             submitBtn.disabled = true;
             submitBtn.innerText = "予約処理中...";
