@@ -33,6 +33,17 @@
         .reserve-button { background-color: #f6eb16; color: #333; border: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: 700; width: 100%; max-width: 200px; cursor: pointer; transition: background-color 0.2s ease; }
         .reserve-button:hover { background-color: #efdd12; }
         .reserve-button:disabled { background-color: #ccc; color: #666; cursor: not-allowed; }
+
+        @media (max-width: 600px) {
+            .product-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+            .product-card { padding: 1rem; border-radius: 1rem; }
+            .product-name { font-size: 1rem; }
+            .stock-info { font-size: 0.75rem; padding: 0.1rem 0.5rem; margin-bottom: 1rem; }
+            .quantity-selector { max-width: 100%; padding: 0.3rem; margin-bottom: 1rem; }
+            .qty-btn { width: 28px; height: 28px; font-size: 1rem; }
+            .qty-display { font-size: 1rem; min-width: 25px; }
+            .reserve-button { padding: 0.6rem 0.5rem; font-size: 0.85rem; max-width: 100%; border-radius: 1rem; }
+        }
     </style>
 </head>
 <body>
