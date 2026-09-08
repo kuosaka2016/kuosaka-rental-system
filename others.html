@@ -88,14 +88,19 @@
 
             const today = new Date().toISOString().split('T')[0];
             const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+            const maxDateObj = new Date(Date.now() + (30 * 24 * 60 * 60 * 1000));
+            const maxDate = maxDateObj.toISOString().split('T')[0];
             
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
 
             startDateInput.value = today;
             startDateInput.min = today;
+            startDateInput.max = maxDate;
+            
             endDateInput.value = tomorrow;
             endDateInput.min = today;
+            endDateInput.max = maxDate;
 
             loadProducts();
         });
@@ -104,9 +109,15 @@
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
             const startDate = startDateInput.value;
-            endDateInput.min = startDate;
+            
+            const startObj = new Date(startDate);
+            const maxEndObj = new Date(startObj.getTime() + (30 * 24 * 60 * 60 * 1000));
+            const maxEndDate = maxEndObj.toISOString().split('T')[0];
 
-            if (endDateInput.value < startDate) {
+            endDateInput.min = startDate;
+            endDateInput.max = maxEndDate;
+
+            if (endDateInput.value < startDate || endDateInput.value > maxEndDate) {
                 endDateInput.value = startDate;
             }
             loadProducts();
