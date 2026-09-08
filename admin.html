@@ -635,14 +635,67 @@
                     imageUrl = publicUrlData.publicUrl;
                 }
 
-                await supabaseClient.from('products').update({ name: newName, category: newCategory, total_stock: newStock, is_active: newIsActive, image_url: imageUrl }).eq('id', productId);
-                await supabaseClient.from('product_units').delete().eq('product_id', productId);
+                const { error: productUpdateError } = await supabaseClient
+                    .from('products')
+                    .update({ name: newName, category: newCategory, total_stock: newStock, is_active: newIsActive, image_url: imageUrl })
+                    .eq('id', productId);
+                if (productUpdateError) throw productUpdateError;
 
-                if (newUnitsInput !== '') {
-                    const unitNumbers = newUnitsInput.split(',').map(u => u.trim()).filter(u => u !== '');
-                    if (unitNumbers.length > 0) {
-                        const unitRows = unitNumbers.map(uNum => ({ product_id: productId, unit_number: uNum }));
-                        await supabaseClient.from('product_units').insert(unitRows);
+                // 個体番号は全削除せず、差分だけ更新する。
+                // これにより既存の product_units.id を維持し、予約済み unit_id との紐付けを壊さない。
+                const normalizedUnitNumbers = [...new Set(
+                    newUnitsInput
+                        .split(',')
+                        .map(u => u.trim())
+                        .filter(u => u !== '')
+                )];
+
+                const { data: existingUnits, error: existingUnitsError } = await supabaseClient
+                    .from('product_units')
+                    .select('id, unit_number')
+                    .eq('product_id', productId);
+                if (existingUnitsError) throw existingUnitsError;
+
+                const existingByNumber = new Map((existingUnits || []).map(u => [u.unit_number, u]));
+
+                // 追加された個体番号だけINSERT
+                const unitNumbersToAdd = normalizedUnitNumbers.filter(num => !existingByNumber.has(num));
+                if (unitNumbersToAdd.length > 0) {
+                    const unitRows = unitNumbersToAdd.map(uNum => ({ product_id: productId, unit_number: uNum }));
+                    const { error: insertUnitsError } = await supabaseClient
+                        .from('product_units')
+                        .insert(unitRows);
+                    if (insertUnitsError) throw insertUnitsError;
+                }
+
+                // 入力欄から削除された個体番号だけDELETE候補にする
+                const unitsToDelete = (existingUnits || []).filter(u => !normalizedUnitNumbers.includes(u.unit_number));
+
+                if (unitsToDelete.length > 0) {
+                    const deleteCandidateIds = unitsToDelete.map(u => u.id);
+
+                    // 過去を含む予約明細で使われている個体は削除しない
+                    const { data: usedItems, error: usedItemsError } = await supabaseClient
+                        .from('reservation_items')
+                        .select('unit_id')
+                        .in('unit_id', deleteCandidateIds);
+                    if (usedItemsError) throw usedItemsError;
+
+                    const usedUnitIds = new Set((usedItems || []).map(i => i.unit_id).filter(Boolean));
+                    const safeDeleteIds = deleteCandidateIds.filter(id => !usedUnitIds.has(id));
+                    const protectedUnits = unitsToDelete.filter(u => usedUnitIds.has(u.id));
+
+                    if (safeDeleteIds.length > 0) {
+                        const { error: deleteUnitsError } = await supabaseClient
+                            .from('product_units')
+                            .delete()
+                            .in('id', safeDeleteIds);
+                        if (deleteUnitsError) throw deleteUnitsError;
+                    }
+
+                    if (protectedUnits.length > 0) {
+                        const protectedNames = protectedUnits.map(u => u.unit_number).join(', ');
+                        alert(`以下の個体番号は予約履歴で使用されているため削除しませんでした。\n${protectedNames}`);
                     }
                 }
 
