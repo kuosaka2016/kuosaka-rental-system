@@ -21,12 +21,10 @@
 
         .result-container { width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
         .reservation-card { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1.5rem; border-left: 5px solid #206c8c; }
-        .reservation-card.cancelled { border-left-color: #cbd5e1; opacity: 0.7; }
         
         .res-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.8rem; margin-bottom: 1rem; }
         .res-id { font-weight: bold; color: #555; font-size: 0.85rem; }
         .res-status { padding: 0.2rem 0.8rem; border-radius: 1rem; font-size: 0.85rem; font-weight: bold; background-color: #e6f2f5; color: #206c8c; }
-        .reservation-card.cancelled .res-status { background-color: #f1f5f9; color: #64748b; }
 
         .res-body p { margin: 0.4rem 0; font-size: 0.95rem; }
         
@@ -86,7 +84,7 @@
         </div>
     </div>
 
-    <!-- カスタム確認モーダル（「キャンセルする」を左、「いいえ」を右に配置） -->
+    <!-- カスタム確認モーダル -->
     <div class="modal-overlay" id="custom-confirm-modal">
         <div class="modal-content">
             <h3 id="modal-title">確認</h3>
@@ -105,7 +103,6 @@
 
         let confirmCallback = null;
 
-        // カスタム確認モーダルを表示する関数 (Promiseで返す)
         function showCustomConfirm(title, message, confirmText = "削除する") {
             return new Promise((resolve) => {
                 document.getElementById('modal-title').innerText = title;
@@ -136,16 +133,19 @@
             try {
                 container.innerHTML = '<p style="text-align: center; color: #666;">検索中...</p>';
 
+                // キャンセルと返却済を確実に除外して取得
                 const { data: reservations, error: resError } = await supabaseClient
                     .from('reservations')
                     .select('*')
                     .eq('email', email)
+                    .neq('status', 'キャンセル')
+                    .neq('status', '返却済')
                     .order('created_at', { ascending: false });
 
                 if (resError) throw resError;
 
                 if (!reservations || reservations.length === 0) {
-                    container.innerHTML = '<div class="no-result">該当する予約は見つかりませんでした。</div>';
+                    container.innerHTML = '<div class="no-result">有効な予約は見つかりませんでした。</div>';
                     return;
                 }
 
@@ -159,10 +159,9 @@
 
                 container.innerHTML = '';
                 reservations.forEach(res => {
-                    const isCancelled = res.status === 'キャンセル';
                     const isYoyaku = res.status === '予約中';
                     const card = document.createElement('div');
-                    card.className = `reservation-card ${isCancelled ? 'cancelled' : ''}`;
+                    card.className = 'reservation-card';
 
                     const resItems = items.filter(i => i.reservation_id === res.id);
                     let itemsHtml = '<ul style="margin: 0.5rem 0 0 1.2rem; padding: 0;">';
@@ -220,7 +219,6 @@
             form.classList.toggle('active');
         }
 
-        // 期間変更処理（他予約との競合・在庫照合チェック付き）
         async function updateReservationPeriod(resId) {
             const newStart = document.getElementById(`new-start-${resId}`).value;
             const newEnd = document.getElementById(`new-end-${resId}`).value;
@@ -235,7 +233,6 @@
             }
 
             try {
-                // 0. 再度ステータスが「予約中」であるかサーバー側でも念のため確認
                 const { data: currentRes, error: curErr } = await supabaseClient.from('reservations').select('status').eq('id', resId).single();
                 if (curErr) throw curErr;
                 if (currentRes.status !== '予約中') {
@@ -244,14 +241,12 @@
                     return;
                 }
 
-                // 1. この予約に含まれる商品と数量を取得
                 const { data: targetItems, error: tiErr } = await supabaseClient
                     .from('reservation_items')
                     .select('*')
                     .eq('reservation_id', resId);
                 if (tiErr) throw tiErr;
 
-                // 2. 他の有効な予約とアイテムを取得して空き状況を照合
                 const { data: unitsData, error: uErr } = await supabaseClient.from('product_units').select('*');
                 const { data: allRes, error: rErr } = await supabaseClient.from('reservations').select('*').not('status', 'in', '("キャンセル","返却済")').neq('id', resId);
                 const { data: allItems, error: iErr } = await supabaseClient.from('reservation_items').select('*');
@@ -259,11 +254,9 @@
 
                 if (uErr || rErr || iErr || pErr) throw (uErr || rErr || iErr || pErr);
 
-                // 新しい期間と重なる他の予約IDを抽出
                 const conflictingResIds = allRes.filter(r => !(r.end_date < newStart || r.start_date > newEnd)).map(r => r.id);
                 const bookedUnitIds = allItems.filter(i => conflictingResIds.includes(i.reservation_id) && i.unit_id).map(i => i.unit_id);
 
-                // 各商品ごとに新しい期間での在庫をチェック
                 for (const tItem of targetItems) {
                     const prodId = tItem.product_id;
                     const reqQty = tItem.quantity;
@@ -289,7 +282,6 @@
                     }
                 }
 
-                // 3. 在庫・競合チェックOKなら reservations テーブルの期間を更新
                 const { error: updateErr } = await supabaseClient
                     .from('reservations')
                     .update({ start_date: newStart, end_date: newEnd })
@@ -311,7 +303,6 @@
             if (!confirmed) return;
 
             try {
-                // サーバー側でもステータスが「予約中」か再確認
                 const { data: currentRes, error: curErr } = await supabaseClient.from('reservations').select('status').eq('id', reservationId).single();
                 if (curErr) throw curErr;
                 if (currentRes.status !== '予約中') {
@@ -327,7 +318,6 @@
 
                 if (error) throw error;
 
-                // 完了時のポップアップ（alert）を削除し、そのまま再検索して画面を更新
                 searchReservations();
             } catch (err) {
                 console.error(err);
