@@ -89,10 +89,22 @@
                 cartBtn.innerHTML = `🛒 カート <span style="background-color: #f6eb16; color: #333; padding: 0.1rem 0.4rem; border-radius: 1rem; font-size: 0.8rem;">${cart.length}</span>`;
             }
 
-            const today = new Date().toISOString().split('T')[0];
-            const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-            const maxDateObj = new Date(Date.now() + (30 * 24 * 60 * 60 * 1000));
-            const maxDate = maxDateObj.toISOString().split('T')[0];
+            const formatLocalDate = (date) => {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return y + '-' + m + '-' + d;
+            };
+
+            const todayObj = new Date();
+            const tomorrowObj = new Date(todayObj);
+            tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+            const maxDateObj = new Date(todayObj);
+            maxDateObj.setDate(maxDateObj.getDate() + 30);
+
+            const today = formatLocalDate(todayObj);
+            const tomorrow = formatLocalDate(tomorrowObj);
+            const maxDate = formatLocalDate(maxDateObj);
             
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
@@ -114,8 +126,12 @@
             const startDate = startDateInput.value;
             
             const startObj = new Date(startDate);
-            const maxEndObj = new Date(startObj.getTime() + (30 * 24 * 60 * 60 * 1000));
-            const maxEndDate = maxEndObj.toISOString().split('T')[0];
+            const maxEndObj = new Date(startObj);
+            maxEndObj.setDate(maxEndObj.getDate() + 30);
+            const y = maxEndObj.getFullYear();
+            const m = String(maxEndObj.getMonth() + 1).padStart(2, '0');
+            const d = String(maxEndObj.getDate()).padStart(2, '0');
+            const maxEndDate = y + '-' + m + '-' + d;
 
             endDateInput.min = startDate;
             endDateInput.max = maxEndDate;
