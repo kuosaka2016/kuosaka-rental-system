@@ -56,6 +56,20 @@
         
         .modal-close-btn { background-color: #206c8c; color: white; border: none; padding: 0.8rem 2rem; border-radius: 1.5rem; font-size: 1rem; font-weight: bold; cursor: pointer; display: block; width: 100%; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .modal-close-btn:hover { background-color: #174d63; }
+
+        /* --- スマホ画面（幅600px以下）のときだけカテゴリボタンを2列にする設定 --- */
+        @media (max-width: 600px) {
+            .category-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+            .category-card {
+                font-size: 1.4rem;
+                padding: 1.5rem 1rem;
+                min-height: 100px;
+                border-radius: 1.2rem;
+            }
+        }
     </style>
 </head>
 <body>
