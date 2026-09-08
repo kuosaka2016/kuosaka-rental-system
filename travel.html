@@ -82,7 +82,7 @@
     <div class="main-container">
         <h1>トラベル商品一覧</h1>
         <p style="color: #dc2626; font-size: 0.9rem; font-weight: bold; margin-top: 0.3rem; margin-bottom: 1.5rem; text-align: center;">
-            ※商品によってレンタル期間が異なる場合は、分けて予約してください
+            ※商品によってレンタル期間が異なる場合は予約を分けてください。
         </p>
         
         <div class="date-filter-bar">
@@ -224,7 +224,7 @@
                     card.innerHTML = `
                         <div class="product-image-container">${imageHtml}</div>
                         <h2 class="product-name">${product.name}</h2>
-                        <div class="stock-info">選択期間の空き在庫: ${availableCount} 個</div>
+                        <div class="stock-info">選択期間の空き状況: ${availableCount} 個</div>
                         ${actionHtml}
                     `;
                     grid.appendChild(card);
