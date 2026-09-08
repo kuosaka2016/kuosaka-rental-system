@@ -355,7 +355,7 @@
                 const summaryText = `${res.user_name} (${res.department}): ${productNames.join(', ')}`;
 
                 let bgColor = '#206c8c';
-                if (res.status === '貸出済') bgColor = '#0284c7';
+                if (res.status === '貸出中') bgColor = '#0284c7';
                 if (res.status === '返却済') bgColor = '#64748b';
 
                 events.push({
@@ -451,7 +451,7 @@
                     <td>
                         <select onchange="updateStatus('${res.id}', this.value)" class="${getStatusClass(currentStatus)}">
                             <option value="予約中" ${currentStatus === '予約中' ? 'selected' : ''}>予約中</option>
-                            <option value="貸出済" ${currentStatus === '貸出済' ? 'selected' : ''}>貸出済</option>
+                            <option value="貸出中" ${currentStatus === '貸出中' ? 'selected' : ''}>貸出中</option>
                             <option value="返却済" ${currentStatus === '返却済' ? 'selected' : ''}>返却済</option>
                             <option value="キャンセル" ${currentStatus === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
                         </select>
@@ -578,7 +578,7 @@
 
         function getStatusClass(status) {
             if (status === '予約中') return 'status-yoyaku';
-            if (status === '貸出済') return 'status-kashidashi';
+            if (status === '貸出中') return 'status-kashidashi';
             if (status === '返却済') return 'status-henkyaku';
             return '';
         }
