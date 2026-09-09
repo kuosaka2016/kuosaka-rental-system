@@ -34,6 +34,22 @@
         .reserve-button:hover { background-color: #efdd12; }
         .reserve-button:disabled { background-color: #ccc; color: #666; cursor: not-allowed; }
 
+        /* --- カスタムお知らせ・警告モーダル --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; box-sizing: border-box; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background-color: white; border-radius: 1.5rem; max-width: 450px; width: 100%; padding: 2rem; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; animation: modalOpen 0.2s ease-out; }
+        
+        @keyframes modalOpen {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-content h3 { font-size: 1.3rem; color: #206c8c; margin-top: 0; margin-bottom: 1rem; }
+        .modal-content p { color: #555; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.6; text-align: left; white-space: pre-wrap; }
+        .modal-btn-group { display: flex; gap: 1rem; justify-content: center; }
+        .modal-confirm-btn { background-color: #206c8c; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
+        .modal-confirm-btn:hover { background-color: #174d63; }
+
         @media (max-width: 600px) {
             .product-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
             .product-card { padding: 1rem; border-radius: 1rem; }
@@ -75,6 +91,17 @@
         </div>
     </div>
 
+    <!-- カスタム通知モーダル -->
+    <div class="modal-overlay" id="custom-alert-modal">
+        <div class="modal-content">
+            <h3 id="alert-modal-title">確認</h3>
+            <p id="alert-modal-message">メッセージ</p>
+            <div class="modal-btn-group">
+                <button class="modal-confirm-btn" onclick="closeCustomAlert()">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://byntbjxaozwrdexvdlwb.supabase.co'; 
         const SUPABASE_KEY = 'sb_publishable_HA3bsshsYRxlyVJXjdjOGQ_Jhyuv-4S';
@@ -104,6 +131,23 @@
                 return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : '';
             } catch {
                 return '';
+            }
+        }
+
+        function showCustomAlert(message, title = "確認") {
+            return new Promise((resolve) => {
+                document.getElementById('alert-modal-title').innerText = title;
+                document.getElementById('alert-modal-message').innerText = message;
+                document.getElementById('custom-alert-modal').classList.add('active');
+                window.alertResolve = resolve;
+            });
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('custom-alert-modal').classList.remove('active');
+            if (window.alertResolve) {
+                window.alertResolve();
+                window.alertResolve = null;
             }
         }
 
@@ -177,7 +221,7 @@
             if (!startDate || !endDate) return;
 
             if (startDate > endDate) {
-                alert("終了日は開始日以降の日付に設定してください。");
+                showCustomAlert("終了日は開始日以降の日付に設定してください。");
                 return;
             }
 
@@ -262,7 +306,7 @@
                 });
             } catch (err) {
                 console.error(err);
-                grid.innerHTML = `<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>${escapeHtml(err.message)}</p>`;
+                grid.innerHTML = '<p style="color:red; grid-column: 1 / -1; text-align: center; font-weight:bold;">エラーが発生しました。<br>${escapeHtml(err.message)}</p>';
             }
         }
 
@@ -275,12 +319,12 @@
             displayElement.innerText = newQty;
         }
 
-        function addToCart(btnElement, productId) {
+        async function addToCart(btnElement, productId) {
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
 
             if (!startDate || !endDate) {
-                alert("レンタル期間を選択してください。");
+                await showCustomAlert("レンタル期間を選択してください。");
                 return;
             }
 
@@ -289,15 +333,14 @@
             const quantity = parseInt(cardElement.querySelector('.qty-display').innerText);
             let cart = JSON.parse(localStorage.getItem('rental_cart')) || [];
 
-            // カート内のレンタル期間はすべて同じ期間に固定する。
-            // すでに商品が入っている場合、異なる期間の商品は追加しない。
             if (cart.length > 0) {
                 const cartStartDate = cart[0].startDate;
                 const cartEndDate = cart[0].endDate;
                 if (startDate !== cartStartDate || endDate !== cartEndDate) {
-                    alert(
+                    await showCustomAlert(
                         `現在のカートのレンタル期間は ${cartStartDate} 〜 ${cartEndDate} です。\n` +
-                        `別の期間で予約する場合は、現在の予約を完了するかカートを空にしてから追加してください。`
+                        `別の期間で予約する場合は、現在の予約を完了するかカートを空にしてから追加してください。`,
+                        "期間の確認"
                     );
                     return;
                 }
