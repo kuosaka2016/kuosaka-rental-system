@@ -70,7 +70,7 @@
             flex: 0 0 auto;
         }
         .legend-reserved { background-color: #206c8c; }
-        .legend-lending { background-color: #0284c7; }
+        .legend-lending { background-color: #ffd700; }
         .legend-returned { background-color: #64748b; }
 
         /* FullCalendar内部のtableには管理一覧用のmin-width:1100pxを適用しない */
@@ -891,7 +891,7 @@
                 const summaryText = `${res.user_name} (${res.department}): ${productNames.join(', ')}`;
 
                 let bgColor = '#206c8c';
-                if (res.status === '貸出中') bgColor = '#0284c7';
+                if (res.status === '貸出中') bgColor = '#ffd700';
                 if (res.status === '返却済') bgColor = '#64748b';
 
                 events.push({
@@ -900,6 +900,7 @@
                     end: adjustedEndDate,
                     backgroundColor: bgColor,
                     borderColor: bgColor,
+                    textColor: res.status === '貸出中' ? '#000000' : '#ffffff',
                     extendedProps: {
                         description: `申込者: ${res.user_name} (${res.department})\n期間: ${res.start_date} 〜 ${res.end_date}\nステータス: ${res.status}\nメール: ${res.email}`
                     }
