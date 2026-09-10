@@ -282,6 +282,93 @@
                 width: 100%;
                 padding: 0.65rem;
             }
+
+            /* 登録済み商品一覧もタブレット以下では1商品=1カード表示 */
+            #product-table-card h2 .filter-menu {
+                margin-top: 0.8rem;
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 0.45rem;
+            }
+            #product-table-card .filter-btn {
+                width: 100%;
+                padding: 0.55rem 0.35rem;
+                font-size: 0.78rem;
+            }
+            #product-table-card table {
+                min-width: 0;
+                width: 100%;
+                display: block;
+            }
+            #product-table-card thead { display: none; }
+            #product-table-card tbody {
+                display: flex;
+                flex-direction: column;
+                gap: 0.85rem;
+                width: 100%;
+            }
+            #product-table-card tr {
+                display: block;
+                width: 100%;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 0.85rem;
+                padding: 0.35rem 0.85rem;
+                box-sizing: border-box;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+            }
+            #product-table-card td {
+                display: grid;
+                grid-template-columns: 7.2rem minmax(0, 1fr);
+                gap: 0.65rem;
+                align-items: center;
+                width: 100%;
+                padding: 0.7rem 0;
+                border-bottom: 1px solid #eef2f7;
+                box-sizing: border-box;
+                overflow-wrap: anywhere;
+            }
+            #product-table-card td:last-child { border-bottom: none; }
+            #product-table-card td::before {
+                content: attr(data-label);
+                color: #64748b;
+                font-size: 0.78rem;
+                font-weight: 700;
+                line-height: 1.5;
+            }
+            #product-table-card td[colspan] {
+                display: block;
+                text-align: center !important;
+                padding: 1rem 0;
+            }
+            #product-table-card td[colspan]::before { display: none; }
+            #product-table-card .table-input,
+            #product-table-card .table-select {
+                width: 100% !important;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            #product-table-card .product-thumbnail {
+                width: 72px;
+                height: 72px;
+                margin-bottom: 0.5rem;
+            }
+            #product-table-card input[type="file"] {
+                width: 100% !important;
+                max-width: 100%;
+            }
+            #product-table-card .action-btns {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+                width: 100%;
+            }
+            #product-table-card .save-btn,
+            #product-table-card .delete-btn {
+                width: 100%;
+                padding: 0.65rem 0.45rem;
+            }
         }
 
         @media (max-width: 520px) {
@@ -298,6 +385,16 @@
                 gap: 0.5rem;
                 font-size: 0.88rem;
             }
+            #product-table-card h2 .filter-menu {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            #product-table-card td {
+                grid-template-columns: 5.8rem minmax(0, 1fr);
+                gap: 0.5rem;
+                font-size: 0.88rem;
+                align-items: start;
+            }
+            #product-table-card .action-btns { grid-template-columns: 1fr; }
 
             .fc .fc-toolbar-title { font-size: 1.05rem !important; }
             .fc .fc-button { font-size: 0.72rem !important; padding: 0.38rem 0.5rem !important; }
@@ -306,6 +403,119 @@
             .fc .fc-daygrid-day-frame { min-height: 4.2rem; }
             .fc-event { font-size: 0.62rem; }
         }
+    
+        /* --- タブレット：商品一覧を2段のコンパクトグリッドにする --- */
+        @media (min-width: 601px) and (max-width: 1024px) {
+            #section-products .card:last-child {
+                padding: 1.25rem;
+                overflow-x: hidden;
+            }
+
+            #section-products .card:last-child table,
+            #section-products .card:last-child tbody {
+                display: block;
+                width: 100%;
+                min-width: 0;
+            }
+
+            #section-products .card:last-child thead {
+                display: none;
+            }
+
+            #section-products .card:last-child tbody {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 1rem;
+            }
+
+            #section-products .card:last-child tr {
+                display: grid;
+                grid-template-columns: 88px minmax(0, 1fr);
+                gap: 0.45rem 0.75rem;
+                align-items: center;
+                padding: 1rem;
+                margin: 0;
+                border: 1px solid #e2e8f0;
+                border-radius: 0.9rem;
+                background: #fff;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+            }
+
+            #section-products .card:last-child td {
+                display: block;
+                width: auto;
+                min-width: 0;
+                padding: 0;
+                border: 0;
+            }
+
+            #section-products .card:last-child td::before {
+                display: block;
+                margin-bottom: 0.2rem;
+                color: #64748b;
+                font-size: 0.72rem;
+                font-weight: 700;
+            }
+
+            #section-products .card:last-child td:nth-child(1)::before { content: "画像"; }
+            #section-products .card:last-child td:nth-child(2)::before { content: "商品名"; }
+            #section-products .card:last-child td:nth-child(3)::before { content: "カテゴリ"; }
+            #section-products .card:last-child td:nth-child(4)::before { content: "在庫数"; }
+            #section-products .card:last-child td:nth-child(5)::before { content: "公開状態"; }
+            #section-products .card:last-child td:nth-child(6)::before { content: "個体番号"; }
+            #section-products .card:last-child td:nth-child(7)::before { content: "操作"; }
+
+            #section-products .card:last-child td:nth-child(1) {
+                grid-row: span 3;
+                align-self: start;
+            }
+
+            #section-products .card:last-child td:nth-child(6),
+            #section-products .card:last-child td:nth-child(7) {
+                grid-column: 1 / -1;
+            }
+
+            #section-products .card:last-child .product-thumbnail {
+                width: 72px;
+                height: 72px;
+                margin: 0 0 0.35rem;
+            }
+
+            #section-products .card:last-child input[type="file"] {
+                width: 82px !important;
+                max-width: 82px;
+                font-size: 0.65rem !important;
+            }
+
+            #section-products .card:last-child .table-input,
+            #section-products .card:last-child .table-select {
+                width: 100%;
+                max-width: 180px;
+                padding: 0.45rem;
+                font-size: 0.85rem;
+            }
+
+            #section-products .card:last-child input[id^="stock-"] {
+                width: 72px !important;
+            }
+
+            #section-products .card:last-child td:nth-child(6) .table-input {
+                max-width: 100%;
+            }
+
+            #section-products .card:last-child .action-btns {
+                display: flex;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+
+            #section-products .card:last-child .save-btn,
+            #section-products .card:last-child .delete-btn {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -413,7 +623,7 @@
                 </form>
             </div>
 
-            <div class="card">
+            <div class="card" id="product-table-card">
                 <h2>
                     📦 登録済み商品一覧（公開・非表示切替対応）
                     <div class="filter-menu">
@@ -880,12 +1090,12 @@
                 const isActive = prod.is_active !== false;
 
                 tr.innerHTML = `
-                    <td>
+                    <td data-label="画像 / 変更">
                         ${imgHtml}
                         <input type="file" id="image-file-${prod.id}" accept="image/*" style="font-size: 0.75rem; width: 130px;">
                     </td>
-                    <td><input type="text" id="name-${prod.id}" value="${safeProdName}" class="table-input"></td>
-                    <td>
+                    <td data-label="商品名"><input type="text" id="name-${prod.id}" value="${safeProdName}" class="table-input"></td>
+                    <td data-label="カテゴリ">
                         <select id="cat-${prod.id}" class="table-select">
                             <option value="スポーツ" ${prod.category === 'スポーツ' ? 'selected' : ''}>スポーツ</option>
                             <option value="アウトドア" ${prod.category === 'アウトドア' ? 'selected' : ''}>アウトドア</option>
@@ -893,15 +1103,15 @@
                             <option value="その他" ${prod.category === 'その他' ? 'selected' : ''}>その他</option>
                         </select>
                     </td>
-                    <td><input type="number" id="stock-${prod.id}" value="${prod.total_stock || prodUnits.length}" min="1" class="table-input" style="width: 70px;"></td>
-                    <td>
+                    <td data-label="在庫数"><input type="number" id="stock-${prod.id}" value="${prod.total_stock || prodUnits.length}" min="1" class="table-input" style="width: 70px;"></td>
+                    <td data-label="公開状態">
                         <select id="active-${prod.id}" class="table-select">
                             <option value="true" ${isActive ? 'selected' : ''}>🟢 公開中</option>
                             <option value="false" ${!isActive ? 'selected' : ''}>🔴 非表示（修理中等）</option>
                         </select>
                     </td>
-                    <td><input type="text" id="units-${prod.id}" value="${escapeHtml(unitNumbersStr)}" class="table-input" placeholder="例: No.1, No.2"></td>
-                    <td>
+                    <td data-label="個体番号"><input type="text" id="units-${prod.id}" value="${escapeHtml(unitNumbersStr)}" class="table-input" placeholder="例: No.1, No.2"></td>
+                    <td data-label="操作">
                         <div class="action-btns">
                             <button data-current-image-url="${safeImageAttr}" onclick="saveProduct(this, '${safeProdId}', this.dataset.currentImageUrl)" class="save-btn">変更を保存</button>
                             <button onclick="deleteProduct('${safeProdId}')" class="delete-btn">削除</button>
