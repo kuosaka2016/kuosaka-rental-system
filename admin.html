@@ -76,6 +76,8 @@
         .status-yoyaku { background-color: #fff9c4; }
         .status-kashidashi { background-color: #c8e6c9; }
         .status-henkyaku { background-color: #e0e0e0; }
+        .operation-history { margin-top: .55rem; font-size: .76rem; line-height: 1.55; color: #64748b; }
+        .operation-history strong { color: #475569; }
         
         .item-list { margin: 0; padding-left: 1.2rem; font-size: 0.9rem; }
         .item-list li { margin-bottom: 0.6rem; }
@@ -851,6 +853,13 @@
             return `${y}-${m}-${d}`;
         }
 
+        function formatOperationDateTime(value) {
+            if (!value) return '未記録';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '未記録';
+            return date.toLocaleString('ja-JP', { timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        }
+
         function updateSummaryCards() {
             const today = getLocalDateString();
             const todayLending = allReservationsData.filter(res => (res.status || '予約中') === '予約中' && res.start_date === today).length;
@@ -938,6 +947,8 @@
                 const safeEndDate = escapeHtml(res.end_date);
                 const safeEmail = escapeHtml(res.email);
                 const safeEmailHref = encodeURIComponent(String(res.email || '').trim());
+                const lentAtText = escapeHtml(formatOperationDateTime(res.lent_at));
+                const returnedAtText = escapeHtml(formatOperationDateTime(res.returned_at));
                 const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
                 
                 // この予約期間と被る他の有効な予約ID（キャンセル・返却済以外、自予約は除く）
@@ -996,7 +1007,11 @@
                             <option value="返却済" ${currentStatus === '返却済' ? 'selected' : ''}>返却済</option>
                             <option value="キャンセル" ${currentStatus === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
                         </select>
-                        <button onclick="deleteReservation('${safeResId}')" class="delete-btn">予約を削除</button>
+                        <div class="operation-history">
+                            <div><strong>貸出日時:</strong> ${lentAtText}</div>
+                            <div><strong>返却日時:</strong> ${returnedAtText}</div>
+                        </div>
+                        <button onclick="deleteReservation('${safeResId}')" class="delete-btn" style="margin-top:.55rem;">予約を削除</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1131,13 +1146,32 @@
 
         async function updateStatus(reservationId, newStatus) {
             try {
-                const { error } = await supabaseClient.from('reservations').update({ status: newStatus }).eq('id', reservationId);
+                const currentReservation = allReservationsData.find(r => String(r.id) === String(reservationId));
+                const oldStatus = currentReservation ? (currentReservation.status || '予約中') : null;
+                const updateData = { status: newStatus };
+                const nowIso = new Date().toISOString();
+
+                if (newStatus === '貸出中' && oldStatus !== '貸出中') {
+                    if (!currentReservation?.lent_at) updateData.lent_at = nowIso;
+                    if (oldStatus === '返却済') updateData.returned_at = null;
+                }
+
+                if (newStatus === '返却済' && oldStatus !== '返却済') {
+                    updateData.returned_at = nowIso;
+                    if (!currentReservation?.lent_at) updateData.lent_at = nowIso;
+                }
+
+                if (newStatus === '予約中' && oldStatus === '返却済') {
+                    updateData.returned_at = null;
+                }
+
+                const { error } = await supabaseClient.from('reservations').update(updateData).eq('id', reservationId);
                 if (error) throw error;
-                loadReservations(); 
+                loadReservations();
             } catch (err) {
                 console.error(err);
                 alert("更新に失敗しました。\n" + err.message);
-                loadReservations(); 
+                loadReservations();
             }
         }
 
