@@ -34,6 +34,45 @@
         #calendar { max-width: 100%; margin: 0 auto; background: #fff; padding: 0.5rem; border-radius: 0.8rem; }
         .fc-event { cursor: pointer; font-size: 0.85rem; padding: 2px 4px; border-radius: 4px; }
 
+        /* カレンダー凡例 */
+        .calendar-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .calendar-title-row h2 {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .calendar-legend {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #475569;
+        }
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            display: inline-block;
+            flex: 0 0 auto;
+        }
+        .legend-reserved { background-color: #206c8c; }
+        .legend-lending { background-color: #0284c7; }
+        .legend-returned { background-color: #64748b; }
+
         /* FullCalendar内部のtableには管理一覧用のmin-width:1100pxを適用しない */
         .fc table { width: 100% !important; min-width: 0 !important; table-layout: fixed; }
         .fc .fc-scrollgrid,
@@ -159,6 +198,21 @@
             }
 
             /* FullCalendarを縦並びにしてはみ出しを防止 */
+            .calendar-title-row {
+                align-items: flex-start;
+                gap: 0.7rem;
+            }
+            .calendar-legend {
+                width: 100%;
+                gap: 0.7rem 1rem;
+                font-size: 0.78rem;
+            }
+            .legend-color {
+                width: 14px;
+                height: 14px;
+                border-radius: 4px;
+            }
+
             #calendar { padding: 0; width: 100%; max-width: 100%; overflow: hidden; }
             .fc { width: 100% !important; max-width: 100% !important; }
             .fc .fc-scrollgrid { font-size: 0.82rem; }
@@ -538,7 +592,14 @@
         <div id="section-reservations" class="admin-section active">
             <!-- 予約日程カレンダー表示用カード -->
             <div class="card">
-                <h2>📅 予約スケジュール カレンダー</h2>
+                <div class="calendar-title-row">
+                    <h2>📅 予約スケジュール カレンダー</h2>
+                    <div class="calendar-legend" aria-label="カレンダーの色分け">
+                        <span class="legend-item"><span class="legend-color legend-reserved"></span>予約中</span>
+                        <span class="legend-item"><span class="legend-color legend-lending"></span>貸出中</span>
+                        <span class="legend-item"><span class="legend-color legend-returned"></span>返却済</span>
+                    </div>
+                </div>
                 <div id="calendar"></div>
             </div>
 
