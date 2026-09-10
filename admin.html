@@ -597,6 +597,7 @@
                     <div class="calendar-legend" aria-label="カレンダーの色分け">
                         <span class="legend-item"><span class="legend-color legend-reserved"></span>予約中</span>
                         <span class="legend-item"><span class="legend-color legend-lending"></span>貸出中</span>
+                        <span class="legend-item"><span class="legend-color" style="background-color:#dc2626;"></span>返却期限超過</span>
                         <span class="legend-item"><span class="legend-color legend-returned"></span>返却済</span>
                     </div>
                 </div>
@@ -891,8 +892,24 @@
                 const summaryText = `${res.user_name} (${res.department}): ${productNames.join(', ')}`;
 
                 let bgColor = '#206c8c';
-                if (res.status === '貸出中') bgColor = '#ffd700';
-                if (res.status === '返却済') bgColor = '#64748b';
+                let textColor = '#ffffff';
+                const today = getLocalDateString();
+
+                if (res.status === '貸出中') {
+                    // 返却予定日を過ぎても貸出中なら赤、それ以外の貸出中はゴールド
+                    if (res.end_date && res.end_date < today) {
+                        bgColor = '#dc2626';
+                        textColor = '#ffffff';
+                    } else {
+                        bgColor = '#ffd700';
+                        textColor = '#000000';
+                    }
+                }
+
+                if (res.status === '返却済') {
+                    bgColor = '#64748b';
+                    textColor = '#ffffff';
+                }
 
                 events.push({
                     title: summaryText,
@@ -900,7 +917,7 @@
                     end: adjustedEndDate,
                     backgroundColor: bgColor,
                     borderColor: bgColor,
-                    textColor: res.status === '貸出中' ? '#000000' : '#ffffff',
+                    textColor: textColor,
                     extendedProps: {
                         description: `申込者: ${res.user_name} (${res.department})\n期間: ${res.start_date} 〜 ${res.end_date}\nステータス: ${res.status}\nメール: ${res.email}`
                     }
