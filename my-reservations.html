@@ -46,7 +46,7 @@
 
         .no-result { text-align: center; color: #666; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 
-        /* --- カスタム確認モーダル（ポップアップ）のスタイル --- */
+        /* --- カスタムモーダル（ポップアップ）のスタイル --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; box-sizing: border-box; }
         .modal-overlay.active { display: flex; }
         .modal-content { background-color: white; border-radius: 1.5rem; max-width: 450px; width: 100%; padding: 2rem; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; animation: modalOpen 0.2s ease-out; }
@@ -57,12 +57,14 @@
         }
 
         .modal-content h3 { font-size: 1.3rem; color: #206c8c; margin-top: 0; margin-bottom: 1rem; }
-        .modal-content p { color: #555; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5; }
+        .modal-content p { color: #555; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.6; text-align: left; white-space: pre-wrap; }
         .modal-btn-group { display: flex; gap: 1rem; justify-content: center; }
         .modal-cancel-btn { background-color: #e2e8f0; color: #475569; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
         .modal-cancel-btn:hover { background-color: #cbd5e1; }
-        .modal-confirm-btn { background-color: #dc2626; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
-        .modal-confirm-btn:hover { background-color: #b91c1c; }
+        .modal-confirm-btn { background-color: #206c8c; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
+        .modal-confirm-btn:hover { background-color: #174d63; }
+        .modal-danger-btn { background-color: #dc2626; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
+        .modal-danger-btn:hover { background-color: #b91c1c; }
     </style>
 </head>
 <body>
@@ -74,24 +76,23 @@
         <div class="search-card">
             <div class="search-group">
                 <label for="search-email">予約時に登録したメールアドレス</label>
-                <input type="email" id="search-email" placeholder="例: taro_komtsu@global.komatsu">
+                <input type="email" id="search-email" placeholder="例: taro_komatsu@global.komatsu">
             </div>
             <button class="search-btn" onclick="searchReservations()">予約を検索</button>
         </div>
 
         <div class="result-container" id="result-container">
-            <p style="text-align: center; color: #666;">メールアドレスを入力して「予約を検索」を押してください。</p>
+            <p style="text-align: center; color: #666;">メールアドレスを入力して「予約を検索」してください。</p>
         </div>
     </div>
 
-    <!-- カスタム確認モーダル -->
-    <div class="modal-overlay" id="custom-confirm-modal">
+    <!-- カスタム通知・確認モーダル -->
+    <div class="modal-overlay" id="custom-modal">
         <div class="modal-content">
             <h3 id="modal-title">確認</h3>
-            <p id="modal-message">本当に実行しますか？</p>
-            <div class="modal-btn-group">
-                <button class="modal-confirm-btn" id="modal-submit-btn" onclick="closeCustomConfirm(true)">実行する</button>
-                <button class="modal-cancel-btn" onclick="closeCustomConfirm(false)">いいえ</button>
+            <p id="modal-message">メッセージ</p>
+            <div class="modal-btn-group" id="modal-btn-group">
+                <button class="modal-confirm-btn" id="modal-ok-btn" onclick="closeModal(true)">OK</button>
             </div>
         </div>
     </div>
@@ -118,33 +119,37 @@
                 .replace(/\n/g, '\\n');
         }
 
-        function safeImageUrl(value) {
-            if (!value) return '';
-            try {
-                const url = new URL(String(value), window.location.href);
-                return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : '';
-            } catch {
-                return '';
-            }
-        }
+        let modalResolveCallback = null;
 
-        let confirmCallback = null;
-
-        function showCustomConfirm(title, message, confirmText = "削除する") {
+        // 統一されたカスタムモーダル（お知らせ用 / 確認用 兼用）
+        function showModal(title, message, isConfirm = false, confirmText = "実行する", isDanger = false) {
             return new Promise((resolve) => {
                 document.getElementById('modal-title').innerText = title;
                 document.getElementById('modal-message').innerText = message;
-                document.getElementById('modal-submit-btn').innerText = confirmText;
-                document.getElementById('custom-confirm-modal').classList.add('active');
-                confirmCallback = resolve;
+                
+                const btnGroup = document.getElementById('modal-btn-group');
+                if (isConfirm) {
+                    const confirmClass = isDanger ? 'modal-danger-btn' : 'modal-confirm-btn';
+                    btnGroup.innerHTML = `
+                        <button class="${confirmClass}" id="modal-ok-btn" onclick="closeModal(true)">${confirmText}</button>
+                        <button class="modal-cancel-btn" onclick="closeModal(false)">いいえ</button>
+                    `;
+                } else {
+                    btnGroup.innerHTML = `
+                        <button class="modal-confirm-btn" id="modal-ok-btn" onclick="closeModal(true)">OK</button>
+                    `;
+                }
+
+                document.getElementById('custom-modal').classList.add('active');
+                modalResolveCallback = resolve;
             });
         }
 
-        function closeCustomConfirm(result) {
-            document.getElementById('custom-confirm-modal').classList.remove('active');
-            if (confirmCallback) {
-                confirmCallback(result);
-                confirmCallback = null;
+        function closeModal(result) {
+            document.getElementById('custom-modal').classList.remove('active');
+            if (modalResolveCallback) {
+                modalResolveCallback(result);
+                modalResolveCallback = null;
             }
         }
 
@@ -153,7 +158,7 @@
             const container = document.getElementById('result-container');
 
             if (!email) {
-                alert("メールアドレスを入力してください。");
+                await showModal("入力エラー", "メールアドレスを入力してください。");
                 return;
             }
 
@@ -168,7 +173,6 @@
 
                 if (resError) throw resError;
 
-                // 「予約中」または「貸出中」のステータスだけを表示するようにフィルタリング
                 const reservations = rawData ? rawData.filter(r => r.status === '予約中' || r.status === '貸出中') : [];
 
                 if (!reservations || reservations.length === 0) {
@@ -237,7 +241,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert("検索に失敗しました。\n" + err.message);
+                await showModal("エラー", "検索に失敗しました。\n" + err.message);
                 container.innerHTML = '<p style="text-align: center; color: red;">エラーが発生しました。</p>';
             }
         }
@@ -252,11 +256,11 @@
             const newEnd = document.getElementById(`new-end-${resId}`).value;
 
             if (!newStart || !newEnd) {
-                alert("日付を入力してください。");
+                await showModal("入力エラー", "日付を入力してください。");
                 return;
             }
             if (newStart > newEnd) {
-                alert("終了日は開始日以降の日付に設定してください。");
+                await showModal("入力エラー", "終了日は開始日以降の日付に設定してください。");
                 return;
             }
 
@@ -264,7 +268,7 @@
                 const { data: currentRes, error: curErr } = await supabaseClient.from('reservations').select('status').eq('id', resId).single();
                 if (curErr) throw curErr;
                 if (currentRes.status !== '予約中') {
-                    alert("この予約はすでに「予約中」ではないため、期間を変更できません。");
+                    await showModal("エラー", "この予約はすでに「予約中」ではないため、期間を変更できません。");
                     searchReservations();
                     return;
                 }
@@ -317,24 +321,24 @@
 
                 if (updateErr) throw updateErr;
 
-                alert("レンタル期間を変更しました！");
+                await showModal("完了", "レンタル期間を変更しました！");
                 searchReservations();
 
             } catch (err) {
                 console.error(err);
-                alert("期間の変更に失敗しました。\n" + err.message);
+                await showModal("エラー", "期間の変更に失敗しました。\n" + err.message);
             }
         }
 
         async function cancelReservation(reservationId) {
-            const confirmed = await showCustomConfirm("予約のキャンセル確認", "本当にこの予約をキャンセルしますか？", "キャンセルする");
+            const confirmed = await showModal("予約のキャンセル確認", "本当にこの予約をキャンセルしますか？", true, "キャンセルする", true);
             if (!confirmed) return;
 
             try {
                 const { data: currentRes, error: curErr } = await supabaseClient.from('reservations').select('status').eq('id', reservationId).single();
                 if (curErr) throw curErr;
                 if (currentRes.status !== '予約中') {
-                    alert("この予約はすでに「予約中」ではないため、キャンセルできません。");
+                    await showModal("エラー", "この予約はすでに「予約中」ではないため、キャンセルできません。");
                     searchReservations();
                     return;
                 }
@@ -349,7 +353,7 @@
                 searchReservations();
             } catch (err) {
                 console.error(err);
-                alert("キャンセルの処理に失敗しました。\n" + err.message);
+                await showModal("エラー", "キャンセルの処理に失敗しました。\n" + err.message);
             }
         }
     </script>
