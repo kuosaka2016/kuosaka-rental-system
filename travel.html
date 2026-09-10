@@ -199,32 +199,30 @@
             const todayObj = new Date();
             const tomorrowObj = new Date(todayObj);
             tomorrowObj.setDate(tomorrowObj.getDate() + 1);
-            const maxDateObj = new Date(todayObj);
-            maxDateObj.setDate(maxDateObj.getDate() + 30);
 
             const today = formatLocalDate(todayObj);
             const tomorrow = formatLocalDate(tomorrowObj);
-            const maxDate = formatLocalDate(maxDateObj);
             
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
 
             startDateInput.value = today;
             startDateInput.min = today;
-            startDateInput.max = maxDate;
             
             endDateInput.value = tomorrow;
             endDateInput.min = today;
-            endDateInput.max = maxDate;
 
+            updateDateConstraints();
             loadProducts();
         });
 
-        function onStartDateChange() {
+        function updateDateConstraints() {
             const startDateInput = document.getElementById('start-date');
             const endDateInput = document.getElementById('end-date');
             const startDate = startDateInput.value;
             
+            if (!startDate) return;
+
             const startObj = new Date(startDate);
             const maxEndObj = new Date(startObj);
             maxEndObj.setDate(maxEndObj.getDate() + 30);
@@ -237,8 +235,12 @@
             endDateInput.max = maxEndDate;
 
             if (endDateInput.value < startDate || endDateInput.value > maxEndDate) {
-                endDateInput.value = startDate;
+                endDateInput.value = maxEndDate;
             }
+        }
+
+        function onStartDateChange() {
+            updateDateConstraints();
             loadProducts();
         }
 
@@ -250,7 +252,23 @@
             if (!startDate || !endDate) return;
 
             if (startDate > endDate) {
-                showCustomAlert("終了日は開始日以降の日付に設定してください。");
+                await showCustomAlert("終了日は開始日以降の日付に設定してください。");
+                return;
+            }
+
+            const startObj = new Date(startDate);
+            const endObj = new Date(endDate);
+            const diffTime = endObj - startObj;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays > 30) {
+                await showCustomAlert("レンタル期間は最長30日までです。30日以内の期間を設定してください。");
+                const maxEndObj = new Date(startObj);
+                maxEndObj.setDate(maxEndObj.getDate() + 30);
+                const y = maxEndObj.getFullYear();
+                const m = String(maxEndObj.getMonth() + 1).padStart(2, '0');
+                const d = String(maxEndObj.getDate()).padStart(2, '0');
+                document.getElementById('end-date').value = y + '-' + m + '-' + d;
                 return;
             }
 
