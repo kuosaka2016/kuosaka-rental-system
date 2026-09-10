@@ -34,6 +34,16 @@
         #calendar { max-width: 100%; margin: 0 auto; background: #fff; padding: 0.5rem; border-radius: 0.8rem; }
         .fc-event { cursor: pointer; font-size: 0.85rem; padding: 2px 4px; border-radius: 4px; }
 
+        /* FullCalendar内部のtableには管理一覧用のmin-width:1100pxを適用しない */
+        .fc table { width: 100% !important; min-width: 0 !important; table-layout: fixed; }
+        .fc .fc-scrollgrid,
+        .fc .fc-scrollgrid-section table,
+        .fc .fc-col-header,
+        .fc .fc-daygrid-body,
+        .fc .fc-daygrid-body table { width: 100% !important; min-width: 0 !important; }
+        .fc .fc-view-harness,
+        .fc .fc-view-harness-active { width: 100% !important; max-width: 100% !important; }
+
         .filter-menu { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .filter-btn { background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         .filter-btn.active { background-color: #206c8c; color: white; border-color: #206c8c; }
@@ -147,7 +157,22 @@
             }
 
             /* FullCalendarを縦並びにしてはみ出しを防止 */
-            #calendar { padding: 0; }
+            #calendar { padding: 0; width: 100%; max-width: 100%; overflow: hidden; }
+            .fc { width: 100% !important; max-width: 100% !important; }
+            .fc .fc-scrollgrid { font-size: 0.82rem; }
+            .fc .fc-daygrid-day-frame { min-width: 0; }
+            .fc .fc-daygrid-event {
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                max-width: 100%;
+            }
+            .fc .fc-event-title,
+            .fc .fc-event-time {
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
             .fc .fc-toolbar {
                 flex-direction: column;
                 align-items: stretch;
@@ -274,8 +299,12 @@
                 font-size: 0.88rem;
             }
 
-            .fc .fc-toolbar-title { font-size: 1.15rem !important; }
-            .fc .fc-daygrid-day-frame { min-height: 4.5rem; }
+            .fc .fc-toolbar-title { font-size: 1.05rem !important; }
+            .fc .fc-button { font-size: 0.72rem !important; padding: 0.38rem 0.5rem !important; }
+            .fc .fc-col-header-cell-cushion,
+            .fc .fc-daygrid-day-number { font-size: 0.72rem; padding-left: 2px; padding-right: 2px; }
+            .fc .fc-daygrid-day-frame { min-height: 4.2rem; }
+            .fc-event { font-size: 0.62rem; }
         }
     </style>
 </head>
