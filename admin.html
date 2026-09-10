@@ -463,6 +463,20 @@
         }
 
         function applyQuickFilter(filterName, cardElement) {
+            // 選択中のカードをもう一度押したらフィルター解除
+            if (currentQuickFilter === filterName) {
+                currentQuickFilter = null;
+                currentStatusFilter = 'all';
+                clearQuickFilterAppearance();
+
+                const filterButtons = document.querySelectorAll('#section-reservations .filter-btn');
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                if (filterButtons.length > 0) filterButtons[0].classList.add('active');
+
+                renderReservationList();
+                return;
+            }
+
             currentQuickFilter = filterName;
             currentStatusFilter = 'all';
 
