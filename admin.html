@@ -90,19 +90,23 @@
 
 
         /* --- 本日の運用サマリー --- */
-        .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 2rem; }
         .summary-card { border: 1px solid #e2e8f0; background: white; border-radius: 1rem; padding: 1.25rem 1.4rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; text-align: left; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
         .summary-card:hover { transform: translateY(-2px); box-shadow: 0 7px 14px rgba(0,0,0,0.08); }
         .summary-card.active { border-color: #206c8c; box-shadow: 0 0 0 3px rgba(32,108,140,0.12); }
         .summary-card.overdue.active { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.12); }
         .summary-label { display: flex; align-items: center; gap: 0.45rem; color: #475569; font-size: 0.9rem; font-weight: bold; }
         .summary-count { margin-top: 0.5rem; font-size: 2rem; line-height: 1; font-weight: 800; color: #206c8c; }
+        .summary-card.current-lending .summary-count { color: #0284c7; }
         .summary-card.return .summary-count { color: #0284c7; }
         .summary-card.overdue .summary-count { color: #dc2626; }
         .summary-note { margin-top: 0.55rem; color: #64748b; font-size: 0.78rem; }
         .summary-card.overdue .summary-note { color: #b91c1c; }
 
-        @media (max-width: 760px) {
+        @media (max-width: 1024px) {
+            .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 550px) {
             .summary-grid { grid-template-columns: 1fr; }
             .main-container { padding: 1rem; }
         }
@@ -258,7 +262,6 @@
                 padding: 1px 2px;
             }
 
-            .summary-grid { grid-template-columns: 1fr; gap: 0.7rem; }
             .summary-card { padding: 1rem; }
             .summary-count { font-size: 1.65rem; }
 
@@ -615,6 +618,11 @@
                     <div class="summary-count"><span id="count-today-return">0</span><span style="font-size:1rem; margin-left:0.2rem;">件</span></div>
                     <div class="summary-note">今日が返却日・貸出中</div>
                 </button>
+                <button type="button" class="summary-card current-lending" id="summary-current-lending" onclick="applyQuickFilter('current-lending', this)">
+                    <div class="summary-label">🔑 貸出中</div>
+                    <div class="summary-count"><span id="count-current-lending">0</span><span style="font-size:1rem; margin-left:0.2rem;">件</span></div>
+                    <div class="summary-note">現在貸出中の合計件数</div>
+                </button>
                 <button type="button" class="summary-card overdue" id="summary-overdue" onclick="applyQuickFilter('overdue', this)">
                     <div class="summary-label">⚠️ 返却期限超過</div>
                     <div class="summary-count"><span id="count-overdue">0</span><span style="font-size:1rem; margin-left:0.2rem;">件</span></div>
@@ -946,10 +954,12 @@
             const today = getLocalDateString();
             const todayLending = allReservationsData.filter(res => (res.status || '予約中') === '予約中' && res.start_date === today).length;
             const todayReturn = allReservationsData.filter(res => res.status === '貸出中' && res.end_date === today).length;
+            const currentLending = allReservationsData.filter(res => res.status === '貸出중' || res.status === '貸出中').length;
             const overdue = allReservationsData.filter(res => res.status === '貸出中' && res.end_date && res.end_date < today).length;
 
             document.getElementById('count-today-lending').textContent = todayLending;
             document.getElementById('count-today-return').textContent = todayReturn;
+            document.getElementById('count-current-lending').textContent = currentLending;
             document.getElementById('count-overdue').textContent = overdue;
         }
 
@@ -1003,6 +1013,9 @@
                 }
                 if (currentQuickFilter === 'today-return') {
                     return status === '貸出中' && res.end_date === today;
+                }
+                if (currentQuickFilter === 'current-lending') {
+                    return status === '貸出中';
                 }
                 if (currentQuickFilter === 'overdue') {
                     return status === '貸出中' && res.end_date && res.end_date < today;
@@ -1303,8 +1316,6 @@
                     .eq('id', productId);
                 if (productUpdateError) throw productUpdateError;
 
-                // 個体番号は全削除せず、差分だけ更新する。
-                // これにより既存の product_units.id を維持し、予約済み unit_id との紐付けを壊さない。
                 const normalizedUnitNumbers = [...new Set(
                     newUnitsInput
                         .split(',')
@@ -1320,7 +1331,6 @@
 
                 const existingByNumber = new Map((existingUnits || []).map(u => [u.unit_number, u]));
 
-                // 追加された個体番号だけINSERT
                 const unitNumbersToAdd = normalizedUnitNumbers.filter(num => !existingByNumber.has(num));
                 if (unitNumbersToAdd.length > 0) {
                     const unitRows = unitNumbersToAdd.map(uNum => ({ product_id: productId, unit_number: uNum }));
@@ -1330,13 +1340,11 @@
                     if (insertUnitsError) throw insertUnitsError;
                 }
 
-                // 入力欄から削除された個体番号だけDELETE候補にする
                 const unitsToDelete = (existingUnits || []).filter(u => !normalizedUnitNumbers.includes(u.unit_number));
 
                 if (unitsToDelete.length > 0) {
                     const deleteCandidateIds = unitsToDelete.map(u => u.id);
 
-                    // 過去を含む予約明細で使われている個体は削除しない
                     const { data: usedItems, error: usedItemsError } = await supabaseClient
                         .from('reservation_items')
                         .select('unit_id')
