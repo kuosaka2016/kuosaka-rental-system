@@ -150,7 +150,7 @@
 
         .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 0.3rem; background-color: #eee; display: block; margin-bottom: 0.3rem; }
 
-        /* --- カスタム確認モーダル（ポップアップ）のスタイル --- */
+        /* --- カスタムモーダル（ポップアップ）のスタイル --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; box-sizing: border-box; }
         .modal-overlay.active { display: flex; }
         .modal-content { background-color: white; border-radius: 1.5rem; max-width: 450px; width: 100%; padding: 2rem; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; animation: modalOpen 0.2s ease-out; }
@@ -161,12 +161,14 @@
         }
 
         .modal-content h3 { font-size: 1.3rem; color: #206c8c; margin-top: 0; margin-bottom: 1rem; }
-        .modal-content p { color: #555; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5; }
+        .modal-content p { color: #555; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.6; text-align: left; white-space: pre-wrap; }
         .modal-btn-group { display: flex; gap: 1rem; justify-content: center; }
         .modal-cancel-btn { background-color: #e2e8f0; color: #475569; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
         .modal-cancel-btn:hover { background-color: #cbd5e1; }
-        .modal-confirm-btn { background-color: #dc2626; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
-        .modal-confirm-btn:hover { background-color: #b91c1c; }
+        .modal-confirm-btn { background-color: #206c8c; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
+        .modal-confirm-btn:hover { background-color: #174d63; }
+        .modal-danger-btn { background-color: #dc2626; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 1rem; font-size: 0.95rem; font-weight: bold; cursor: pointer; flex: 1; }
+        .modal-danger-btn:hover { background-color: #b91c1c; }
 
         /* --- スマホ・タブレット向け管理画面 --- */
         @media (max-width: 900px) {
@@ -731,14 +733,13 @@
         </div>
     </div>
 
-    <!-- カスタム確認モーダル -->
-    <div class="modal-overlay" id="custom-confirm-modal">
+    <!-- カスタム通知・確認モーダル -->
+    <div class="modal-overlay" id="custom-modal">
         <div class="modal-content">
             <h3 id="modal-title">確認</h3>
-            <p id="modal-message">本当に実行しますか？</p>
-            <div class="modal-btn-group">
-                <button class="modal-cancel-btn" onclick="closeCustomConfirm(false)">キャンセル</button>
-                <button class="modal-confirm-btn" id="modal-submit-btn" onclick="closeCustomConfirm(true)">削除する</button>
+            <p id="modal-message">メッセージ</p>
+            <div class="modal-btn-group" id="modal-btn-group">
+                <button class="modal-confirm-btn" id="modal-ok-btn" onclick="closeModal(true)">OK</button>
             </div>
         </div>
     </div>
@@ -783,7 +784,7 @@
         let currentQuickFilter = null;
         let currentCategoryFilter = 'all';
         let calendar = null; // FullCalendarインスタンス
-        let confirmCallback = null; // 確認モーダルのコールバック関数
+        let modalResolveCallback = null; // モーダルのコールバック関数
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedTab = localStorage.getItem('admin_active_tab') || 'reservations';
@@ -797,22 +798,35 @@
             loadProducts();
         });
 
-        // カスタム確認モーダルを表示する関数 (Promiseで返す)
-        function showCustomConfirm(title, message, confirmText = "削除する") {
+        // 統一されたカスタムモーダル（お知らせ用 / 確認用 兼用）
+        function showModal(title, message, isConfirm = false, confirmText = "実行する", isDanger = false) {
             return new Promise((resolve) => {
                 document.getElementById('modal-title').innerText = title;
                 document.getElementById('modal-message').innerText = message;
-                document.getElementById('modal-submit-btn').innerText = confirmText;
-                document.getElementById('custom-confirm-modal').classList.add('active');
-                confirmCallback = resolve;
+                
+                const btnGroup = document.getElementById('modal-btn-group');
+                if (isConfirm) {
+                    const confirmClass = isDanger ? 'modal-danger-btn' : 'modal-confirm-btn';
+                    btnGroup.innerHTML = `
+                        <button class="${confirmClass}" id="modal-ok-btn" onclick="closeModal(true)">${confirmText}</button>
+                        <button class="modal-cancel-btn" onclick="closeModal(false)">キャンセル</button>
+                    `;
+                } else {
+                    btnGroup.innerHTML = `
+                        <button class="modal-confirm-btn" id="modal-ok-btn" onclick="closeModal(true)">OK</button>
+                    `;
+                }
+
+                document.getElementById('custom-modal').classList.add('active');
+                modalResolveCallback = resolve;
             });
         }
 
-        function closeCustomConfirm(result) {
-            document.getElementById('custom-confirm-modal').classList.remove('active');
-            if (confirmCallback) {
-                confirmCallback(result);
-                confirmCallback = null;
+        function closeModal(result) {
+            document.getElementById('custom-modal').classList.remove('active');
+            if (modalResolveCallback) {
+                modalResolveCallback(result);
+                modalResolveCallback = null;
             }
         }
 
@@ -834,7 +848,7 @@
                 height: 'auto',
                 events: [],
                 eventClick: function(info) {
-                    alert(info.event.title + "\n\n" + (info.event.extendedProps.description || ''));
+                    showModal("予約詳細", info.event.title + "\n\n" + (info.event.extendedProps.description || ''));
                 }
             });
             calendar.render();
@@ -904,7 +918,6 @@
                 const today = getLocalDateString();
 
                 if (res.status === '貸出中') {
-                    // 返却予定日を過ぎても貸出中なら赤、それ以外の貸出中はゴールド
                     if (res.end_date && res.end_date < today) {
                         bgColor = '#dc2626';
                         textColor = '#ffffff';
@@ -954,7 +967,7 @@
             const today = getLocalDateString();
             const todayLending = allReservationsData.filter(res => (res.status || '予約中') === '予約中' && res.start_date === today).length;
             const todayReturn = allReservationsData.filter(res => res.status === '貸出中' && res.end_date === today).length;
-            const currentLending = allReservationsData.filter(res => res.status === '貸出중' || res.status === '貸出中').length;
+            const currentLending = allReservationsData.filter(res => res.status === '貸出中').length;
             const overdue = allReservationsData.filter(res => res.status === '貸出中' && res.end_date && res.end_date < today).length;
 
             document.getElementById('count-today-lending').textContent = todayLending;
@@ -968,7 +981,6 @@
         }
 
         function applyQuickFilter(filterName, cardElement) {
-            // 選択中のカードをもう一度押したらフィルター解除
             if (currentQuickFilter === filterName) {
                 currentQuickFilter = null;
                 currentStatusFilter = 'all';
@@ -1046,12 +1058,9 @@
                 const returnedAtText = escapeHtml(formatOperationDateTime(res.returned_at));
                 const myItems = allResItemsData.filter(item => item.reservation_id === res.id);
                 
-                // この予約期間と被る他の有効な予約ID（キャンセル・返却済以外、自予約は除く）
                 const conflictingResIds = allReservationsData.filter(r => r.id !== res.id && r.status !== 'キャンセル' && r.status !== '返却済' && !(r.end_date < res.start_date || r.start_date > res.end_date)).map(r => r.id);
-                // その期間に既に予約・貸出されているunit_idのリスト
                 const bookedUnitIds = allResItemsData.filter(i => conflictingResIds.includes(i.reservation_id) && i.unit_id).map(i => i.unit_id);
 
-                // reservation_itemsごとにHTMLを生成する
                 let itemsHtml = '<ul class="item-list">';
                 myItems.forEach(item => {
                     const product = allProductsData.find(p => p.id === item.product_id);
@@ -1113,7 +1122,6 @@
             });
         }
 
-        // 管理者が予約アイテムの個体番号を変更する処理（ポップアップなし・ボタン変化アニメーション仕様）
         async function updateItemUnit(btnElement, itemId) {
             const selectEl = document.getElementById(`unit-select-${itemId}`);
             const newUnitId = selectEl.value ? selectEl.value : null;
@@ -1126,7 +1134,6 @@
 
                 if (error) throw error;
 
-                // ボタンの見た目を「変更しました！」（緑色）に一時的に変化させる
                 const originalText = btnElement.innerText;
                 const originalBg = btnElement.style.backgroundColor;
                 const originalColor = btnElement.style.color;
@@ -1146,7 +1153,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert("個体番号の変更に失敗しました。\n" + err.message);
+                await showModal("エラー", "個体番号の変更に失敗しました。\n" + err.message);
                 loadReservations();
             }
         }
@@ -1265,13 +1272,13 @@
                 loadReservations();
             } catch (err) {
                 console.error(err);
-                alert("更新に失敗しました。\n" + err.message);
+                await showModal("エラー", "更新に失敗しました。\n" + err.message);
                 loadReservations();
             }
         }
 
         async function deleteReservation(reservationId) {
-            const confirmed = await showCustomConfirm("予約の削除確認", "本当にこの予約を削除しますか？", "削除する");
+            const confirmed = await showModal("予約の削除確認", "本当にこの予約を削除しますか？", true, "削除する", true);
             if (!confirmed) return;
 
             try {
@@ -1280,7 +1287,7 @@
                 loadReservations();
             } catch (err) {
                 console.error(err);
-                alert("削除に失敗しました。\n" + err.message);
+                await showModal("エラー", "削除に失敗しました。\n" + err.message);
                 loadReservations();
             }
         }
@@ -1295,7 +1302,7 @@
             const newImageFile = imageFileInput.files[0];
 
             if (!newName || !newCategory || isNaN(newStock)) {
-                alert("必須項目を正しく入力してください。");
+                await showModal("入力エラー", "必須項目を正しく入力してください。");
                 return;
             }
 
@@ -1365,7 +1372,7 @@
 
                     if (protectedUnits.length > 0) {
                         const protectedNames = protectedUnits.map(u => u.unit_number).join(', ');
-                        alert(`以下の個体番号は予約履歴で使用されているため削除しませんでした。\n${protectedNames}`);
+                        await showModal("注意", `以下の個体番号は予約履歴で使用されているため削除しませんでした。\n${protectedNames}`);
                     }
                 }
 
@@ -1388,12 +1395,12 @@
 
             } catch (err) {
                 console.error(err);
-                alert("更新に失敗しました。\n" + err.message);
+                await showModal("エラー", "更新に失敗しました。\n" + err.message);
             }
         }
 
         async function deleteProduct(productId) {
-            const confirmed = await showCustomConfirm("商品の削除確認", "本当にこの商品を削除しますか？", "削除する");
+            const confirmed = await showModal("商品の削除確認", "本当にこの商品を削除しますか？", true, "削除する", true);
             if (!confirmed) return;
 
             try {
@@ -1402,7 +1409,7 @@
                 loadProducts();
             } catch (err) {
                 console.error(err);
-                alert("削除に失敗しました。\n" + err.message);
+                await showModal("エラー", "削除に失敗しました。\n" + err.message);
             }
         }
 
@@ -1415,7 +1422,7 @@
             const imageFile = document.getElementById('product-image').files[0];
 
             if (!name || !category || isNaN(totalStock)) {
-                alert("必須項目を正しく入力・選択してください。");
+                await showModal("入力エラー", "必須項目を正しく入力・選択してください。");
                 return;
             }
 
@@ -1441,13 +1448,13 @@
                     }
                 }
 
-                alert(`新しいアイテム「${name}」を登録しました！`);
+                await showModal("完了", `新しいアイテム「${name}」を登録しました！`);
                 document.getElementById('add-item-form').reset();
                 document.getElementById('total-stock').value = "1";
                 loadProducts();
             } catch (err) {
                 console.error(err);
-                alert("アイテムの登録に失敗しました。\n" + err.message);
+                await showModal("エラー", "アイテムの登録に失敗しました。\n" + err.message);
             }
         });
     </script>
