@@ -246,7 +246,7 @@
             try {
                 grid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center;">空き状況を確認しています...</p>';
 
-                const { data: products, error: prodError } = await supabaseClient.from('products').select('*').eq('is_active', true).eq('category', 'その他').order('name', { ascending: true });
+                const { data: products, error: prodError } = await supabaseClient.from('products').select('*').eq('is_active', true).eq('category', 'その他').order('display_order', { ascending: true }).order('name', { ascending: true });
                 if (prodError) throw prodError;
 
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
