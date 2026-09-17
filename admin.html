@@ -579,6 +579,53 @@
             }
         }
 
+
+
+        /* --- 商品ドラッグ＆ドロップ並べ替え --- */
+        .product-sort-note {
+            margin: -0.25rem 0 1rem;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.6rem;
+            color: #475569;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .product-sort-status { font-weight: 700; margin-left: 0.5rem; }
+        .product-sort-status.saving { color: #b78103; }
+        .product-sort-status.saved { color: #15803d; }
+        .product-sort-status.error { color: #dc2626; }
+        .drag-handle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-bottom: 0.45rem;
+            padding: 0.28rem 0.55rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.4rem;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .drag-handle:active { cursor: grabbing; }
+        .drag-handle.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            touch-action: auto;
+        }
+        #product-list tr.product-dragging {
+            opacity: 0.58;
+            outline: 2px dashed #206c8c;
+            outline-offset: -2px;
+            background: #f0f9ff !important;
+        }
+        body.product-sorting { user-select: none; }
+
     </style>
 </head>
 <body>
@@ -711,6 +758,10 @@
                         <button class="filter-btn" onclick="filterProducts('その他', this)">その他</button>
                     </div>
                 </h2>
+                <div class="product-sort-note" id="product-sort-note">
+                    並べ替えるカテゴリを選択すると、各商品の「☰ 並べ替え」をドラッグして表示順を変更できます。変更は自動保存されます。
+                    <span class="product-sort-status" id="product-sort-status"></span>
+                </div>
                 <table>
                     <thead>
                         <tr>
@@ -1160,7 +1211,12 @@
 
         async function loadProducts() {
             try {
-                const { data: products, error: prodError } = await supabaseClient.from('products').select('*').order('name');
+                const { data: products, error: prodError } = await supabaseClient
+                    .from('products')
+                    .select('*')
+                    .order('category', { ascending: true })
+                    .order('display_order', { ascending: true })
+                    .order('name', { ascending: true });
                 const { data: units, error: unitError } = await supabaseClient.from('product_units').select('*');
                 if (prodError) throw prodError;
                 if (unitError) throw unitError;
@@ -1179,6 +1235,7 @@
             document.querySelectorAll('#section-products .filter-btn').forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
             renderProductList();
+            updateProductSortNote();
         }
 
         function renderProductList() {
@@ -1196,6 +1253,8 @@
             tbody.innerHTML = '';
             filteredProducts.forEach(prod => {
                 const tr = document.createElement('tr');
+                tr.dataset.productId = String(prod.id);
+                tr.dataset.category = String(prod.category || '');
                 const safeImage = safeImageUrl(prod.image_url);
                 const safeProdId = escapeJsSingleQuoted(prod.id);
                 const safeProdName = escapeHtml(prod.name);
@@ -1211,7 +1270,10 @@
                         ${imgHtml}
                         <input type="file" id="image-file-${prod.id}" accept="image/*" style="font-size: 0.75rem; width: 130px;">
                     </td>
-                    <td data-label="商品名"><input type="text" id="name-${prod.id}" value="${safeProdName}" class="table-input"></td>
+                    <td data-label="商品名">
+                        <span class="drag-handle ${currentCategoryFilter === 'all' ? 'disabled' : ''}" title="ドラッグして並べ替え">☰ 並べ替え</span>
+                        <input type="text" id="name-${prod.id}" value="${safeProdName}" class="table-input">
+                    </td>
                     <td data-label="カテゴリ">
                         <select id="cat-${prod.id}" class="table-select">
                             <option value="スポーツ" ${prod.category === 'スポーツ' ? 'selected' : ''}>スポーツ</option>
@@ -1237,7 +1299,140 @@
                 `;
                 tbody.appendChild(tr);
             });
+
+            setupProductSorting();
+            updateProductSortNote();
         }
+
+        let sortingProductRow = null;
+        let sortingPointerId = null;
+        let orderBeforeDrag = '';
+        let orderSaveToken = 0;
+
+        function getVisibleProductOrder() {
+            return Array.from(document.querySelectorAll('#product-list tr[data-product-id]'))
+                .map(row => row.dataset.productId);
+        }
+
+        function updateProductSortNote() {
+            const note = document.getElementById('product-sort-note');
+            if (!note) return;
+
+            if (currentCategoryFilter === 'all') {
+                note.firstChild.textContent = '並べ替えるカテゴリ（スポーツ・アウトドア・トラベル・その他）を選択してください。カテゴリ選択後、「☰ 並べ替え」をドラッグすると自動保存されます。';
+            } else {
+                note.firstChild.textContent = `「${currentCategoryFilter}」の商品を並べ替え中です。「☰ 並べ替え」をつかんで移動してください。変更は自動保存されます。`;
+            }
+        }
+
+        function setupProductSorting() {
+            document.querySelectorAll('#product-list .drag-handle').forEach(handle => {
+                handle.onpointerdown = startProductSort;
+            });
+        }
+
+        function startProductSort(event) {
+            if (currentCategoryFilter === 'all') return;
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+            const row = event.currentTarget.closest('tr[data-product-id]');
+            if (!row) return;
+
+            sortingProductRow = row;
+            sortingPointerId = event.pointerId;
+            orderBeforeDrag = getVisibleProductOrder().join('|');
+            row.classList.add('product-dragging');
+            document.body.classList.add('product-sorting');
+
+            try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
+            event.preventDefault();
+        }
+
+        function moveProductSort(event) {
+            if (!sortingProductRow || sortingPointerId !== event.pointerId) return;
+
+            const tbody = document.getElementById('product-list');
+            const element = document.elementFromPoint(event.clientX, event.clientY);
+            const targetRow = element ? element.closest('#product-list tr[data-product-id]') : null;
+            if (!targetRow || targetRow === sortingProductRow) return;
+
+            const rect = targetRow.getBoundingClientRect();
+            const centerY = rect.top + rect.height / 2;
+            const centerX = rect.left + rect.width / 2;
+            const tabletTwoColumn = window.innerWidth >= 601 && window.innerWidth <= 1024;
+
+            let insertAfter;
+            if (tabletTwoColumn && Math.abs(event.clientY - centerY) < rect.height * 0.35) {
+                insertAfter = event.clientX > centerX;
+            } else {
+                insertAfter = event.clientY > centerY;
+            }
+
+            tbody.insertBefore(sortingProductRow, insertAfter ? targetRow.nextSibling : targetRow);
+            event.preventDefault();
+        }
+
+        async function finishProductSort(event) {
+            if (!sortingProductRow || sortingPointerId !== event.pointerId) return;
+
+            sortingProductRow.classList.remove('product-dragging');
+            sortingProductRow = null;
+            sortingPointerId = null;
+            document.body.classList.remove('product-sorting');
+
+            const newOrder = getVisibleProductOrder().join('|');
+            if (newOrder !== orderBeforeDrag) {
+                await saveProductDisplayOrder();
+            }
+        }
+
+        async function saveProductDisplayOrder() {
+            if (currentCategoryFilter === 'all') return;
+
+            const rows = Array.from(document.querySelectorAll('#product-list tr[data-product-id]'));
+            const status = document.getElementById('product-sort-status');
+            const myToken = ++orderSaveToken;
+
+            if (status) {
+                status.textContent = '保存中…';
+                status.className = 'product-sort-status saving';
+            }
+
+            try {
+                for (let index = 0; index < rows.length; index++) {
+                    const productId = rows[index].dataset.productId;
+                    const displayOrder = index + 1;
+                    const { error } = await supabaseClient
+                        .from('products')
+                        .update({ display_order: displayOrder })
+                        .eq('id', productId);
+                    if (error) throw error;
+
+                    const localProduct = allProductsData.find(p => String(p.id) === String(productId));
+                    if (localProduct) localProduct.display_order = displayOrder;
+                }
+
+                if (myToken === orderSaveToken && status) {
+                    status.textContent = '✓ 保存しました';
+                    status.className = 'product-sort-status saved';
+                    setTimeout(() => {
+                        if (status.textContent === '✓ 保存しました') status.textContent = '';
+                    }, 1800);
+                }
+            } catch (err) {
+                console.error(err);
+                if (status) {
+                    status.textContent = '保存に失敗しました';
+                    status.className = 'product-sort-status error';
+                }
+                await showModal('エラー', '商品の並び順の保存に失敗しました。\n' + err.message);
+                loadProducts();
+            }
+        }
+
+        window.addEventListener('pointermove', moveProductSort, { passive: false });
+        window.addEventListener('pointerup', finishProductSort);
+        window.addEventListener('pointercancel', finishProductSort);
 
         function getStatusClass(status) {
             if (status === '予約中') return 'status-yoyaku';
@@ -1437,7 +1632,22 @@
                     imageUrl = publicUrlData.publicUrl;
                 }
 
-                const { data: insertedProduct, error: prodError } = await supabaseClient.from('products').insert([{ name: name, category: category, total_stock: totalStock, is_active: true, image_url: imageUrl }]).select().single();
+                const maxDisplayOrder = allProductsData
+                    .filter(p => p.category === category)
+                    .reduce((max, p) => Math.max(max, Number(p.display_order) || 0), 0);
+
+                const { data: insertedProduct, error: prodError } = await supabaseClient
+                    .from('products')
+                    .insert([{
+                        name: name,
+                        category: category,
+                        total_stock: totalStock,
+                        is_active: true,
+                        image_url: imageUrl,
+                        display_order: maxDisplayOrder + 1
+                    }])
+                    .select()
+                    .single();
                 if (prodError) throw prodError;
 
                 if (unitInput !== '') {
